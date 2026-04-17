@@ -1,0 +1,2190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RF Sector-to-Site Distance Calculator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg: #FFFFFF;
+            --text: #1a1a1a;
+            --border: #E5E5E5;
+            --accent: #131313;
+            --sidebar-width: 420px;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text);
+            background: var(--bg);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            font-size: 13px;
+        }
+
+        h2 {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            color: #666;
+        }
+
+        .layout {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            z-index: 2000;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .main-content {
+            position: absolute;
+            left: var(--sidebar-width);
+            right: 0;
+            top: 0;
+            bottom: 0;
+            background: #FAFAFA;
+            display: flex;
+            flex-direction: column;
+            transition: left 0.3s ease;
+        }
+
+        .main-content.expanded {
+            left: 0;
+        }
+
+        .sidebar-header {
+            height: 48px;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .panel {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .dropzone {
+            border: 1px dashed var(--border);
+            border-radius: 4px;
+            padding: 20px 16px;
+            text-align: center;
+            cursor: pointer;
+            background: #FAFAFA;
+            transition: background 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .dropzone:hover {
+            background: #f0f0f0;
+        }
+
+        .dropzone.loaded {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            border-style: solid;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            border: 1px solid var(--border);
+            padding: 7px 10px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 13px;
+            background: #fff;
+            color: var(--text);
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        select.form-control {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 30px;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .input-with-unit {
+            position: relative;
+        }
+
+        .input-with-unit input {
+            padding-right: 45px;
+        }
+
+        .input-with-unit .unit {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
+            color: #999;
+            font-weight: 500;
+            pointer-events: none;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .segmented-control {
+            background: #f1f5f9;
+            padding: 3px;
+            border-radius: 9px;
+            display: flex;
+            gap: 2px;
+            border: none;
+        }
+
+        .segmented-control .radio-option {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 12px;
+            margin-bottom: 0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11.5px;
+            font-weight: 400;
+            color: #64748b;
+            transition: all 0.2s ease;
+            background: transparent;
+            user-select: none;
+            line-height: normal;
+        }
+
+        .segmented-control .radio-option:hover:not(.active) {
+            color: #1e293b;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .segmented-control .radio-option.active {
+            background: #ffffff;
+            color: #000000;
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+        }
+
+        .radio-option input {
+            display: none;
+        }
+
+        /* --- Slicer Range Input Style --- */
+        .slicer-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        input[type="range"].slicer {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            outline: none;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        input[type="range"].slicer::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #000;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            margin-top: -1px;
+            /* Align with track center if needed */
+        }
+
+        /* Support for filling black on the left */
+        input[type="range"].slicer.filled {
+            background: linear-gradient(to right, #000 0%, #000 var(--val), #e2e8f0 var(--val), #e2e8f0 100%);
+        }
+
+        .btn {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 9px 16px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: inherit;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #333;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-outline {
+            background: #000;
+            color: white;
+            border: none;
+        }
+
+        .btn-outline:hover:not(:disabled) {
+            background: #333;
+        }
+
+        .btn-danger {
+            background: #000;
+            color: white;
+            border: none;
+        }
+
+        .btn-danger:hover:not(:disabled) {
+            background: #333;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .main-header {
+            height: 48px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 24px;
+            flex-shrink: 0;
+            z-index: 1000;
+        }
+
+        .toggle-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            color: var(--text);
+            padding: 6px;
+            border-radius: 4px;
+        }
+
+        .toggle-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .tabs {
+            display: flex;
+            height: 100%;
+            gap: 24px;
+        }
+
+        .tabs button {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 2px solid transparent;
+            height: 100%;
+            font-weight: 700;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .tabs button:hover {
+            color: var(--text);
+        }
+
+        .tabs button.active {
+            color: #1a1a1a;
+            border-bottom-color: transparent;
+            font-weight: 700;
+        }
+
+        .label-tooltip {
+            background: rgba(0, 0, 0, 0.75);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: 500;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            white-space: nowrap;
+        }
+
+        .label-tooltip::before {
+            display: none;
+        }
+
+        .tab-content {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .leaflet-container {
+            background: #f5f5f5;
+            font-family: inherit;
+        }
+
+        .leaflet-control-zoom {
+            margin-left: 10px !important;
+            margin-bottom: 10px !important;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #dcdcdc;
+            border-radius: 4px;
+        }
+
+        .table-container {
+            flex: 1;
+            overflow: auto;
+            background: var(--bg);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th,
+        td {
+            padding: 11px 20px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+            z-index: 1;
+            font-weight: 600;
+            color: #666;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        th::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 1px;
+            background: var(--border);
+        }
+
+        tr {
+            transition: background 0.1s;
+        }
+
+        tr:hover {
+            background: #f9f9f9;
+            cursor: pointer;
+        }
+
+        tr.row-selected {
+            background: #f0fdf4 !important;
+        }
+
+        .status-bar {
+            background: #f0fdf4;
+            border-left: 3px solid var(--accent);
+            border-radius: 0 4px 4px 0;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #065f46;
+            margin: 10px 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-bar.error {
+            background: #fef2f2;
+            border-left-color: #dc2626;
+            color: #991b1b;
+        }
+
+        .status-bar.warn {
+            background: #fffbeb;
+            border-left-color: #f59e0b;
+            color: #92400e;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 99px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #f0fdf4;
+            color: var(--accent);
+            border: 1px solid #bbf7d0;
+        }
+
+        /* Map Style Switcher - Floating Top-Right */
+        .layer-switcher {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            z-index: 1000;
+        }
+
+        .layer-switcher-expanded {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border-radius: 16px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+            padding: 12px;
+            display: flex;
+            gap: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-origin: top right;
+            animation: expandSwitcher 0.3s ease-out;
+        }
+
+        @keyframes expandSwitcher {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+
+        .layer-tile {
+            width: 74px;
+            cursor: pointer;
+            text-align: center;
+            transition: transform 0.2s, opacity 0.2s;
+            position: relative;
+        }
+
+        .layer-tile:hover {
+            transform: translateY(-2px);
+        }
+
+        .layer-tile-img {
+            width: 66px;
+            height: 66px;
+            border-radius: 10px;
+            border: 3px solid transparent;
+            overflow: hidden;
+            margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            background: #eee;
+        }
+
+        .layer-tile.active .layer-tile-img {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+
+        .layer-tile-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .layer-tile-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #666;
+            margin-top: 8px;
+            transition: color 0.2s;
+        }
+
+        .layer-tile.active .layer-tile-label {
+            color: #2563eb;
+        }
+
+        .layer-switcher-collapsed {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: #fff;
+            border: 4px solid #fff;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            overflow: hidden;
+            display: flex;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .layer-switcher-collapsed:hover {
+            transform: scale(1.1) translateY(-5px);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+        }
+
+        .layer-switcher-collapsed img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* Legend bottom-right */
+        .map-legend-ctrl {
+            position: absolute;
+            bottom: 40px;
+            right: 24px;
+            z-index: 1000;
+            background: white;
+            border-radius: 8px;
+            padding: 10px 13px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+            font-size: 11px;
+            min-width: 170px;
+            border: 1px solid rgba(0, 0, 0, 0.07);
+        }
+
+        .legend-title {
+            font-weight: 800;
+            font-size: 10px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 3px 0;
+            color: #444;
+            font-size: 11px;
+        }
+
+        .legend-count {
+            margin-left: auto;
+            font-size: 10px;
+            font-weight: 700;
+            color: #888;
+            background: #f5f5f5;
+            border-radius: 99px;
+            padding: 1px 7px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            border: 2px solid white;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+        }
+
+        .legend-beam {
+            width: 22px;
+            height: 10px;
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        .legend-line {
+            width: 22px;
+            height: 0;
+            flex-shrink: 0;
+        }
+
+        .legend-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 6px 0;
+        }
+
+        /* Color swatch — full circle fill */
+        .color-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid rgba(0, 0, 0, 0.15);
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .color-swatch input[type="color"] {
+            position: absolute;
+            inset: -4px;
+            width: calc(100% + 8px);
+            height: calc(100% + 8px);
+            border: none;
+            padding: 0;
+            cursor: pointer;
+            opacity: 0;
+        }
+
+        /* Empty state */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 12px;
+            color: #999;
+            pointer-events: none;
+        }
+
+        .empty-state svg {
+            opacity: 0.15;
+        }
+
+        .empty-state p {
+            font-size: 13px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .data-pill {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            color: #666;
+            background: #f9f9f9;
+            border: 1px solid var(--border);
+            border-radius: 99px;
+            padding: 3px 10px;
+            margin-top: 8px;
+        }
+
+        .data-pill .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+        }
+
+        /* Filter / Search */
+        .search-bar-wrap {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .search-bar-wrap input {
+            width: 100%;
+            padding: 6px 30px 6px 30px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 12px;
+            background: #fafafa;
+            transition: border 0.2s;
+        }
+
+        .search-bar-wrap input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: #fff;
+        }
+
+        .search-bar-wrap .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .search-bar-wrap .clear-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #999;
+            font-size: 16px;
+            line-height: 1;
+            padding: 2px 4px;
+            width: auto;
+            display: none;
+        }
+
+        .search-bar-wrap .clear-btn:hover {
+            color: #dc2626;
+        }
+
+
+
+        .match-list {
+            max-height: 180px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: #fff;
+            margin-top: 4px;
+        }
+
+        .match-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            border-bottom: 1px solid #f5f5f5;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.1s;
+        }
+
+        .match-item:last-child {
+            border-bottom: none;
+        }
+
+        .match-item:hover {
+            background: #f0fdf4;
+        }
+
+        .match-item.active {
+            background: #f0fdf4;
+            font-weight: 600;
+        }
+
+        .match-item .mi-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .match-item .mi-label {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .match-item .mi-sub {
+            font-size: 10px;
+            color: #999;
+        }
+
+        .filter-stats {
+            font-size: 11px;
+            color: #888;
+            margin-top: 6px;
+        }
+
+        @media (max-width:768px) {
+            :root {
+                --sidebar-width: 100%;
+            }
+
+            .sidebar {
+                width: 100%;
+                z-index: 3000;
+            }
+
+            .main-content {
+                left: 0 !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="layout">
+
+        <!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div
+                        style="color:#1a1a1a;width:32px;height:32px;display:flex;align-items:center;justify-content:center;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path
+                                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                            </path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 style="font-size:15px;font-weight:400;letter-spacing:-0.02em;margin:0;color:#1a1a1a;">Input Parameter</h1>
+                    </div>
+                </div>
+                <button class="toggle-btn" onclick="toggleSidebar()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+            <div class="sidebar-content">
+
+                <!-- SHOW DATA ON MAP RADIO GROUP -->
+                <div class="panel" style="margin-top:0; padding: 12px 16px; border-bottom: 1px solid var(--border);">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label
+                            style="display:block; font-size:11px; margin-bottom:10px; color:#666; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">Show
+                            Data on Map</label>
+                        <div class="segmented-control">
+                            <label class="radio-option" id="radioMapShow"><input type="radio" name="mapDataMode"
+                                    value="show" onchange="toggleMapData(true)">Visible</label>
+                            <label class="radio-option active" id="radioMapHide"><input type="radio" name="mapDataMode"
+                                    value="hide" checked onchange="toggleMapData(false)">Hidden</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SHOW SITE/SECTOR NAME RADIO GROUP -->
+                <div class="panel"
+                    style="padding: 12px 16px; border-radius: 0 0 12px 12px; border-bottom: 0px solid var(--accent);">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label
+                            style="display:block; font-size:11px; margin-bottom:10px; color:#666; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">Show
+                            Site & Sector name on Map</label>
+                        <div class="segmented-control">
+                            <label class="radio-option" id="radioLabelShow"><input type="radio" name="labelMode"
+                                    value="on" onchange="onLabelToggle(true)">On</label>
+                            <label class="radio-option active" id="radioLabelHide"><input type="radio" name="labelMode"
+                                    value="off" checked onchange="onLabelToggle(false)">Off</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 2: FILTER (NOW AT TOP) -->
+                <div class="panel" id="filterPanel"
+                    style="display:none; border-bottom: 0px solid var(--accent); margin-bottom: 0; border-radius: 12px 12px 0 0;">
+                    <div class="section-title">Filter & Focus TX</div>
+                    <div class="segmented-control" style="margin-bottom:12px;">
+                        <label class="radio-option active" id="chipSite" onclick="setFilterChip('site')">Site</label>
+                        <label class="radio-option" id="chipSector" onclick="setFilterChip('sector')">Sector</label>
+                        <label class="radio-option" id="chipBoth" onclick="setFilterChip('both')">Both</label>
+                    </div>
+                    <div class="search-bar-wrap">
+                        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <input type="text" id="filterSearch" placeholder="Search site or sector…"
+                            oninput="onSearchInput()" onkeydown="onSearchKey(event)">
+                        <button class="clear-btn" id="filterClearBtn" onclick="clearFilter()">×</button>
+                    </div>
+                    <div class="match-list" id="matchList" style="display:none;"></div>
+                    <div class="filter-stats" id="filterStats"></div>
+                    <div id="focusBadge" style="display:none;margin-top:8px;">
+                        <div
+                            style="display:flex;align-items:center;justify-content:space-between;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px 10px;">
+                            <div>
+                                <span
+                                    style="font-size:10px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:0.05em;">Focused</span>
+                                <div style="font-size:12px;font-weight:600;color:#065f46;" id="focusLabel"></div>
+                            </div>
+                            <button onclick="clearFocus()"
+                                style="background:none;border:none;cursor:pointer;color:#10b981;font-size:18px;width:auto;padding:2px 4px;">×</button>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <!-- PANEL 1: TX FILE -->
+                <div class="panel">
+                    <div class="section-title">1. TX Sector File</div>
+                    <div class="dropzone" id="txDropzone" onclick="document.getElementById('txFile').click()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5" style="opacity:0.4;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <div style="color:#666;font-size:12px;" id="txFileLabel">CSV / TXT / Excel (.xls, .xlsx)</div>
+                        <div style="font-size:10px;color:#aaa;">Click or drag & drop</div>
+                        <input type="file" id="txFile" accept=".csv,.txt,.xls,.xlsx" style="display:none">
+                    </div>
+
+                    <div id="txMapFields" style="display:none;margin-top:14px;">
+                        <div class="form-group"><label>Site Name Column</label><select class="form-control"
+                                id="m_tx_site" onchange="onTxMappingChange()"></select></div>
+                        <div class="form-group"><label>Sector ID Column</label><select class="form-control"
+                                id="m_tx_sect" onchange="onTxMappingChange()"></select></div>
+                        <div class="form-group"><label>Longitude Column</label><select class="form-control"
+                                id="m_tx_lon" onchange="onTxMappingChange()"></select></div>
+                        <div class="form-group"><label>Latitude Column</label><select class="form-control" id="m_tx_lat"
+                                onchange="onTxMappingChange()"></select></div>
+                        <div class="form-group"><label>Azimuth Column</label><select class="form-control" id="m_tx_az"
+                                onchange="onTxMappingChange()"></select></div>
+                    </div>
+                </div>
+
+                <!-- PANEL 3: RX FILE -->
+                <div class="panel">
+                    <div class="section-title">3. RX Site File</div>
+                    <div class="dropzone" id="rxDropzone" onclick="document.getElementById('rxFile').click()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5" style="opacity:0.4;">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="17 8 12 3 7 8" />
+                            <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <div style="color:#666;font-size:12px;" id="rxFileLabel">CSV / TXT / Excel (.xls, .xlsx)</div>
+                        <div style="font-size:10px;color:#aaa;">Click or drag & drop</div>
+                        <input type="file" id="rxFile" accept=".csv,.txt,.xls,.xlsx" style="display:none">
+                    </div>
+
+                    <div id="rxMapFields" style="display:none;margin-top:14px;">
+                        <div class="form-group"><label>Site Name Column</label><select class="form-control"
+                                id="m_rx_site" onchange="onRxMappingChange()"></select></div>
+                        <div class="form-group"><label>Longitude Column</label><select class="form-control"
+                                id="m_rx_lon" onchange="onRxMappingChange()"></select></div>
+                        <div class="form-group"><label>Latitude Column</label><select class="form-control" id="m_rx_lat"
+                                onchange="onRxMappingChange()"></select></div>
+                    </div>
+                </div>
+
+                <!-- PANEL 4: SETTINGS -->
+                <div class="panel">
+                    <div class="section-title">4. Analysis Settings</div>
+                    <div class="form-group">
+                        <label>Horizontal Beamwidth (°)</label>
+                        <div class="slicer-wrap">
+                            <div class="input-with-unit"><input type="number" class="form-control" id="beamwidth"
+                                    value="65" min="1" max="360"
+                                    oninput="syncValue('beamwidth', this.value, 'input')"><span class="unit">deg</span>
+                            </div>
+                            <input type="range" id="beamwidthSlider" class="slicer filled" min="1" max="360" value="65"
+                                oninput="syncValue('beamwidth', this.value, 'slider')">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Distance Filter</label>
+                        <div class="segmented-control" style="margin-bottom:8px;">
+                            <label class="radio-option active" id="radioUnlimited"><input type="radio" name="distMode"
+                                    value="unlimited" checked onchange="onDistModeChange(this)">∞ Unlimited</label>
+                            <label class="radio-option" id="radioLimited"><input type="radio" name="distMode"
+                                    value="limited" onchange="onDistModeChange(this)">Set Limit</label>
+                        </div>
+                        <div id="distLimitInput" style="display:none;">
+                            <div class="slicer-wrap">
+                                <div class="input-with-unit"><input type="number" class="form-control" id="maxDist"
+                                        value="50" min="0.1" step="0.1"
+                                        oninput="syncValue('maxDist', this.value, 'input')"><span class="unit">km</span>
+                                </div>
+                                <input type="range" id="maxDistSlider" class="slicer filled" min="0.1" max="100"
+                                    step="0.1" value="50" oninput="syncValue('maxDist', this.value, 'slider')">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Beam Display Radius</label>
+                        <div class="segmented-control" style="margin-bottom:8px;">
+                            <label class="radio-option" id="radioBeamAuto"><input type="radio" name="beamMode"
+                                    value="auto" onchange="onBeamModeChange(this)">Auto</label>
+                            <label class="radio-option active" id="radioBeamFixed"><input type="radio" name="beamMode"
+                                    value="fixed" checked onchange="onBeamModeChange(this)">Fixed (m)</label>
+                        </div>
+                        <div id="beamRadiusInput" style="display:block;">
+                            <div class="slicer-wrap">
+                                <div class="input-with-unit" style="margin-bottom:8px;">
+                                    <input type="number" class="form-control" id="beamRadius" value="250" min="10"
+                                        step="10" oninput="syncValue('beamRadius', this.value, 'input')">
+                                    <span class="unit">m</span>
+                                </div>
+                                <input type="range" id="beamRadiusSlider" class="slicer filled" min="10" max="10000"
+                                    step="10" value="250" oninput="syncValue('beamRadius', this.value, 'slider')">
+                            </div>
+                        </div>
+                        <div id="beamAutoHint" style="display:none;font-size:11px;color:#999;margin-top:4px;">Auto: extends to
+                            farthest matched RX ×1.1. Unmatched TX uses 3 km.</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Show Nearest N Sites per Sector</label>
+                        <div class="slicer-wrap">
+                            <input type="number" class="form-control" id="topN" value="3" min="1" max="25"
+                                oninput="syncValue('topN', this.value, 'input')">
+                            <input type="range" id="topNSlider" class="slicer filled" min="1" max="25" value="3"
+                                oninput="syncValue('topN', this.value, 'slider')">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="section-title">5. Map Appearance</div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+                        <div class="form-group" style="margin-bottom:0;grid-column:1/-1;">
+                            <label>Site Marker Size</label>
+                            <div class="slicer-wrap">
+                                <div class="input-with-unit" style="width: 100%;">
+                                    <input type="number" class="form-control" id="markerSize" value="1" min="1" max="30"
+                                        oninput="syncValue('markerSize', this.value, 'input')">
+                                    <span class="unit">px</span>
+                                </div>
+                                <input type="range" id="markerSizeSlider" class="slicer filled" min="1" max="25"
+                                    step="1" value="1" oninput="syncValue('markerSize', this.value, 'slider')">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:14px;grid-column:1/-1;">
+                            <label>Fill Opacity</label>
+                            <div class="slicer-wrap">
+                                <div class="input-with-unit" style="width: 100%;">
+                                    <input type="number" class="form-control" id="fillOpacity" value="73" min="5"
+                                        max="100" oninput="syncValue('fillOpacity', this.value, 'input')">
+                                    <span class="unit">%</span>
+                                </div>
+                                <input type="range" id="fillOpacitySlider" class="slicer filled" min="5" max="100"
+                                    step="1" value="73" oninput="syncValue('fillOpacity', this.value, 'slider')">
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>TX Marker</label>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <div class="color-swatch" id="swatchTx" style="background:#e53935;"><input type="color"
+                                        id="colorTx" value="#e53935" oninput="onSwatchInput('colorTx','swatchTx')"
+                                        onchange="onColorChange()"></div>
+                                <span style="font-size:11px;color:#888;">TX Sites</span>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>RX Marker</label>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <div class="color-swatch" id="swatchRx" style="background:#1a73e8;"><input type="color"
+                                        id="colorRx" value="#1a73e8" oninput="onSwatchInput('colorRx','swatchRx')"
+                                        onchange="onColorChange()"></div>
+                                <span style="font-size:11px;color:#888;">RX Sites</span>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Beam — Has Match</label>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <div class="color-swatch" id="swatchBeamMatch" style="background:#10b981;"><input
+                                        type="color" id="colorBeamMatch" value="#10b981"
+                                        oninput="onSwatchInput('colorBeamMatch','swatchBeamMatch')"
+                                        onchange="onColorChange()"></div>
+                                <span style="font-size:11px;color:#888;">With RX</span>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label>Beam — No Match</label>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <div class="color-swatch" id="swatchBeamNoMatch" style="background:#ff9800;"><input
+                                        type="color" id="colorBeamNoMatch" value="#ff9800"
+                                        oninput="onSwatchInput('colorBeamNoMatch','swatchBeamNoMatch')"
+                                        onchange="onColorChange()"></div>
+                                <span style="font-size:11px;color:#888;">No RX</span>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;grid-column:1/-1;">
+                            <label>Link Line</label>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <div class="color-swatch" id="swatchLine" style="background:#9c27b0;"><input
+                                        type="color" id="colorLine" value="#9c27b0"
+                                        oninput="onSwatchInput('colorLine','swatchLine')" onchange="onColorChange()">
+                                </div>
+                                <span style="font-size:11px;color:#888;">TX → RX connection</span>
+                            </div>
+                        </div>
+
+                        <!-- MAP LEGEND TOGGLE -->
+                        <div class="form-group" style="margin-bottom:0;grid-column:1/-1;margin-top:10px;">
+                            <label style="display:block; font-size:11px; margin-bottom:10px; color:#666; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">Show Map Legend</label>
+                            <div class="segmented-control">
+                                <label class="radio-option" id="radioLegendShow"><input type="radio" name="legendMode" value="on" onchange="onLegendToggle(true)">On</label>
+                                <label class="radio-option active" id="radioLegendHide"><input type="radio" name="legendMode" value="off" checked onchange="onLegendToggle(false)">Off</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PANEL 6: ACTIONS -->
+                <div class="panel" style="border-bottom:none;">
+                    <div class="section-title">6. Actions & Export</div>
+                    <div class="btn-group">
+                        <button class="btn" onclick="processData()" id="btnProcess">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                            </svg>
+                            Calculate & Show Results
+                        </button>
+                    <!-- PROGRESS BAR -->
+                    <div id="progressContainer" style="display:none;margin-bottom:12px;padding:12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:11px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;">
+                            <span id="progressLabel">Calculating...</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div style="height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+                            <div id="progressBar" style="height:100%;width:0%;background:linear-gradient(90deg, #1a1a1a, #4a4a4a);transition:width 0.2s ease-out;border-radius:3px;"></div>
+                        </div>
+                    </div>
+                        <button class="btn btn-outline" onclick="downloadCSV()" id="btnDownload" disabled>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            Download CSV
+                        </button>
+                        <button class="btn btn-outline" onclick="downloadKML()" id="btnKml" disabled>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            Download KML
+                        </button>
+                        <button class="btn btn-outline" onclick="resetToDefaults()"
+                            style="width:100%;color:#ef4444;border-color:#fee2e2;background:#fef2f2;">Clear All &
+                            Reset</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ═══════════════════════ MAIN CONTENT ═══════════════════════ -->
+        <div class="main-content" id="mainContent">
+            <div class="main-header">
+                <button class="toggle-btn" onclick="toggleSidebar()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="3" y1="12" x2="21" y2="12" />
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                </button>
+                <div class="tabs">
+                    <button id="tabBtnMap" class="active" onclick="switchTab('map')">
+                        Sector To Site Distance Calculator
+                    </button>
+
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#888;">
+                </div>
+            </div>
+
+            <div id="statusBar" style="display:none;"></div>
+
+            <div class="tab-content">
+                <!-- MAP TAB -->
+                <div id="tabMap" style="height:100%;position:relative;">
+                    <div class="layer-switcher" id="layerSwitcher">
+                        <div class="layer-switcher-collapsed" onclick="toggleLayerSwitcher()">
+                            <img id="layerThumb" src="https://basemaps.cartocdn.com/light_all/5/15/12.png" alt="style">
+                        </div>
+                    </div>
+
+                    <div class="map-legend-ctrl" id="mapLegend" style="display:none;">
+                        <div class="legend-title">Legend</div>
+                        <div class="legend-row">
+                            <div class="legend-dot" id="lgTxDot" style="background:#e53935;"></div><span>TX
+                                Sector</span><span class="legend-count" id="lgTxCount">0</span>
+                        </div>
+                        <div class="legend-row">
+                            <div class="legend-dot" id="lgRxDot" style="background:#1a73e8;"></div><span>RX
+                                Site</span><span class="legend-count" id="lgRxCount">0</span>
+                        </div>
+                        <div class="legend-divider"></div>
+                        <div class="legend-row">
+                            <div class="legend-beam" id="lgBeamMatch"
+                                style="background:#10b981;opacity:0.7;border:1.5px solid #10b981;"></div><span>Beam —
+                                matched</span><span class="legend-count" id="lgBeamMatchCount">0</span>
+                        </div>
+                        <div class="legend-row">
+                            <div class="legend-beam" id="lgBeamNoMatch"
+                                style="background:#ff9800;opacity:0.55;border:1.5px dashed #ff9800;"></div><span>Beam —
+                                no match</span><span class="legend-count" id="lgBeamNoMatchCount">0</span>
+                        </div>
+                        <div class="legend-divider" id="lgResultDivider" style="display:none;"></div>
+                        <div class="legend-row" id="lgLinkRow" style="display:none;">
+                            <div class="legend-line" id="lgLinkLine" style="border-top:2px dashed #9c27b0;"></div>
+                            <span>TX → RX link</span><span class="legend-count" id="lgLinkCount">0</span>
+                        </div>
+                    </div>
+                    <div id="map" style="width:100%;height:100%;"></div>
+                    
+
+                    <div class="empty-state" id="mapEmpty">
+                        <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="0.8">
+                            <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+                            <line x1="9" y1="3" x2="9" y2="18" />
+                            <line x1="15" y1="6" x2="15" y2="21" />
+                        </svg>
+                        <p>Load TX and/or RX files<br>to preview sites on the map</p>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ─── State ───────────────────────────────────────────────────────────────────
+        let txData = [], rxData = [], results = [];
+        let map = null, tileLayer = null;
+        let lgBeams = null, lgLines = null, lgRxRaw = null, lgTxBeams = null, lgTxRaw = null, lgRxResult = null, lgTxResult = null, lgFocusHighlight = null;
+        let sidebarOpen = true, activeTab = 'map', layerSwitcherOpen = false, currentMapStyle = 'light', hasResults = false;
+        let showLabels = false;
+        let filterMode = 'site', filterQuery = '', focusedItem = null;
+        let matchedTxKeysGlobal = new Set();
+        let allBounds = [];
+        const DEFAULT_BEAM_KM = 3;
+
+        // ─── Constants ───────────────────────────────────────────────────────────────
+
+
+        // ─── Map Styles ───────────────────────────────────────────────────────────────
+        const MAP_STYLES = {
+            light: { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attr: '© OSM © CARTO', thumb: 'https://basemaps.cartocdn.com/light_all/5/15/12.png', label: 'White Map' },
+            dark: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attr: '© OSM © CARTO', thumb: 'https://basemaps.cartocdn.com/dark_all/5/15/12.png', label: 'Black Map' },
+            osm: { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attr: '© OSM contributors', thumb: 'https://tile.openstreetmap.org/5/15/12.png', label: 'OSM Standard' },
+            satellite: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: 'Tiles © Esri', thumb: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/5/12/15', label: 'Satellite IM' },
+            terrain: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/{z}/{y}/{x}', attr: 'Tiles © Esri', thumb: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Terrain_Base/MapServer/tile/5/12/15', label: 'DTM Terrain' },
+            topo: { url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', attr: '© OpenTopoMap', thumb: 'https://a.tile.opentopomap.org/5/15/12.png', label: 'Topo DTM' },
+        };
+
+        const AUTO_PATTERNS = {
+            m_tx_site: /site.?name|site_?id|sitename/i, m_tx_sect: /sector|cell.?id|sector_?id/i,
+            m_tx_lon: /^lon$|^long$|longitude/i, m_tx_lat: /^lat$|latitude/i,
+            m_tx_az: /az|azimuth|bearing/i, m_rx_site: /site.?name|site_?id|sitename/i,
+            m_rx_lon: /^lon$|^long$|longitude/i, m_rx_lat: /^lat$|latitude/i,
+        };
+
+        // ─── Color Swatch ─────────────────────────────────────────────────────────────
+        function onSwatchInput(inputId, swatchId) {
+            document.getElementById(swatchId).style.background = document.getElementById(inputId).value;
+        }
+
+        // ─── File Loading — CSV / TXT / Excel ─────────────────────────────────────────
+        document.getElementById('txFile').onchange = e => loadFile(e.target.files[0], 'tx');
+        document.getElementById('rxFile').onchange = e => loadFile(e.target.files[0], 'rx');
+
+        ['txDropzone', 'rxDropzone'].forEach((id, i) => {
+            const el = document.getElementById(id), type = i === 0 ? 'tx' : 'rx';
+            el.ondragover = e => { e.preventDefault(); el.style.background = '#f0f0f0'; };
+            el.ondragleave = () => { el.style.background = ''; };
+            el.ondrop = e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) loadFile(f, type); };
+        });
+
+        function loadFile(file, type) {
+            if (!file) return;
+            // showStatus(`⏳ Loading "${file.name}"…`, 'info');
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (['xlsx', 'xls'].includes(ext)) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    try {
+                        const wb = XLSX.read(e.target.result, { type: 'binary' });
+                        const ws = wb.Sheets[wb.SheetNames[0]];
+                        const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+                        const fields = data.length ? Object.keys(data[0]) : [];
+                        handleParsed(data, fields, file.name, type);
+                    } catch (err) { showStatus(`❌ Excel parse error: ${err.message}`, 'error'); }
+                };
+                reader.readAsBinaryString(file);
+            } else {
+                Papa.parse(file, {
+                    header: true, skipEmptyLines: true,
+                    complete({ data, meta }) { handleParsed(data, meta.fields, file.name, type); },
+                    error(err) { showStatus(`❌ Parse error: ${err.message}`, 'error'); }
+                });
+            }
+            renderLayerSwitcher();
+        }
+
+        function handleParsed(data, fields, filename, type) {
+            if (type === 'tx') {
+                txData = data;
+                document.getElementById('txDropzone').classList.add('loaded');
+                document.getElementById('txFileLabel').innerHTML = `<strong style="color:#065f46;">${filename}</strong>`;
+                fillDropdowns('txMapFields', 'tx', fields);
+                document.getElementById('filterPanel').style.display = 'block';
+            } else {
+                rxData = data;
+                document.getElementById('rxDropzone').classList.add('loaded');
+                document.getElementById('rxFileLabel').innerHTML = `<strong style="color:#065f46;">${filename}</strong>`;
+                fillDropdowns('rxMapFields', 'rx', fields);
+            }
+            // showStatus(`✅ Loaded ${data.length} rows from "${filename}"`, 'success');
+        }
+
+        function fillDropdowns(divId, prefix, fields) {
+            document.getElementById(divId).style.display = 'block';
+            const opts = fields.map(f => `<option value="${f}">${f}</option>`).join('');
+            const ids = prefix === 'tx' ? ['m_tx_site', 'm_tx_sect', 'm_tx_lon', 'm_tx_lat', 'm_tx_az'] : ['m_rx_site', 'm_rx_lon', 'm_rx_lat'];
+            ids.forEach(id => { const el = document.getElementById(id); if (el) el.innerHTML = opts; });
+            ids.forEach(id => { const el = document.getElementById(id); if (!el) return; const m = fields.find(f => AUTO_PATTERNS[id]?.test(f)); if (m) el.value = m; });
+        }
+
+        function onTxMappingChange() { buildMatchList(); }
+        function onRxMappingChange() { }
+        function onColorChange() { updateLegendColors(); if (hasResults) { previewRawOnMap(); redrawResults(); } }
+
+        // ─── Filter / Search ──────────────────────────────────────────────────────────
+        function setFilterChip(mode) {
+            filterMode = mode;
+            ['site', 'sector', 'both'].forEach(m => {
+                document.getElementById('chip' + m.charAt(0).toUpperCase() + m.slice(1)).classList.toggle('active', m === mode);
+            });
+            onSearchInput();
+        }
+        function onSearchInput() {
+            filterQuery = document.getElementById('filterSearch').value.trim();
+            document.getElementById('filterClearBtn').style.display = filterQuery ? 'block' : 'none';
+            buildMatchList();
+        }
+        function onSearchKey(e) { if (e.key === 'Escape') clearFilter(); }
+
+        function getFieldValues() {
+            if (!txData.length) return [];
+            const snC = document.getElementById('m_tx_site').value;
+            const scC = document.getElementById('m_tx_sect').value;
+            const laC = document.getElementById('m_tx_lat').value;
+            const loC = document.getElementById('m_tx_lon').value;
+            const seen = new Map();
+            txData.forEach(row => {
+                const site = String(row[snC] ?? ''), sect = String(row[scC] ?? '');
+                const lat = parseFloat(row[laC]), lon = parseFloat(row[loC]);
+                if (isNaN(lat) || isNaN(lon)) return;
+                const q = filterQuery.toLowerCase();
+                let key = '', label = '', sub = '', matchType = '';
+                if (filterMode === 'site') {
+                    if (q && !site.toLowerCase().includes(q)) return;
+                    key = 'site:' + site; label = site; sub = 'site'; matchType = 'site';
+                } else if (filterMode === 'sector') {
+                    if (q && !sect.toLowerCase().includes(q)) return;
+                    key = 'sector:' + site + '_' + sect; label = sect; sub = site; matchType = 'sector';
+                } else {
+                    if (q && !(site + ' ' + sect).toLowerCase().includes(q)) return;
+                    key = 'sector:' + site + '_' + sect; label = sect || site; sub = site; matchType = 'sector';
+                }
+                if (!seen.has(key)) seen.set(key, { key, label, sub, matchType, site, sect, rows: [row] });
+                else seen.get(key).rows.push(row);
+            });
+            const result = [];
+            seen.forEach(item => {
+                const laC2 = document.getElementById('m_tx_lat').value, loC2 = document.getElementById('m_tx_lon').value;
+                let sLat = 0, sLon = 0, cnt = 0;
+                item.rows.forEach(r => { const la = parseFloat(r[laC2]), lo = parseFloat(r[loC2]); if (!isNaN(la) && !isNaN(lo)) { sLat += la; sLon += lo; cnt++; } });
+                item.lat = sLat / cnt; item.lon = sLon / cnt; result.push(item);
+            });
+            return result.slice(0, 50);
+        }
+
+        function buildMatchList() {
+            const list = document.getElementById('matchList'), stats = document.getElementById('filterStats');
+            if (!txData.length || !filterQuery) { list.style.display = 'none'; stats.textContent = ''; return; }
+            const items = getFieldValues();
+            const cTx = document.getElementById('colorTx').value;
+            if (!items.length) { list.style.display = 'block'; list.innerHTML = `<div class="match-item" style="color:#999;cursor:default;">No matches found</div>`; stats.textContent = '0 results'; return; }
+            list.style.display = 'block';
+            list.innerHTML = items.map((item, i) => `
+        <div class="match-item ${focusedItem && focusedItem.key === item.key ? 'active' : ''}" onclick="focusItem(${i})">
+            <div class="mi-dot" style="background:${cTx};"></div>
+            <div class="mi-label">${highlight(item.label, filterQuery)}</div>
+            <div class="mi-sub">${item.sub}</div>
+        </div>`).join('');
+            list._items = items;
+            stats.textContent = `${items.length} match${items.length !== 1 ? 'es' : ''}`;
+        }
+
+        function highlight(text, q) {
+            if (!q) return text;
+            const i = text.toLowerCase().indexOf(q.toLowerCase());
+            if (i < 0) return text;
+            return text.slice(0, i) + '<mark style="background:#fef08a;border-radius:2px;">' + text.slice(i, i + q.length) + '</mark>' + text.slice(i + q.length);
+        }
+
+        function focusItem(idx) {
+            const list = document.getElementById('matchList');
+            const items = list._items;
+            if (!items || !items[idx]) return;
+            focusedItem = items[idx];
+            list.querySelectorAll('.match-item').forEach((el, i) => el.classList.toggle('active', i === idx));
+            document.getElementById('focusBadge').style.display = 'block';
+            document.getElementById('focusLabel').textContent =
+                focusedItem.matchType === 'sector' ? `${focusedItem.site} / ${focusedItem.sect || focusedItem.label}` : focusedItem.label;
+            applyFocusOnMap(focusedItem);
+        }
+
+        function applyFocusOnMap(item) {
+            ensureMap();
+            if (lgFocusHighlight) lgFocusHighlight.clearLayers();
+            const laC = document.getElementById('m_tx_lat').value, loC = document.getElementById('m_tx_lon').value;
+            const snC = document.getElementById('m_tx_site').value, scC = document.getElementById('m_tx_sect').value, azC = document.getElementById('m_tx_az').value;
+            const cBM = document.getElementById('colorBeamMatch').value, cBN = document.getElementById('colorBeamNoMatch').value;
+            const cTx = document.getElementById('colorTx').value, cRx = document.getElementById('colorRx').value, cLine = document.getElementById('colorLine').value;
+            const bw = parseFloat(document.getElementById('beamwidth').value) || 65;
+            const beamMode = document.querySelector('input[name="beamMode"]:checked')?.value || 'auto';
+            const beamFixedR = (parseFloat(document.getElementById('beamRadius').value) || 3000) / 1000;
+            const mSize = parseInt(document.getElementById('markerSize').value) || 8;
+            const bounds = [];
+
+            txData.forEach(row => {
+                const site = String(row[snC] ?? ''), sect = String(row[scC] ?? '');
+                const lat = parseFloat(row[laC]), lon = parseFloat(row[loC]);
+                if (isNaN(lat) || isNaN(lon)) return;
+                let match = false;
+                if (item.matchType === 'site') match = site === item.site;
+                if (item.matchType === 'sector') match = site === item.site && (sect === item.sect || sect === item.label);
+                if (!match) return;
+                const az = parseFloat(row[azC]);
+                const txKey = `${site}_${sect}`;
+                const isMatched = matchedTxKeysGlobal.has(txKey);
+                const beamColor = isMatched ? cBM : cBN;
+                let radius = DEFAULT_BEAM_KM;
+                if (beamMode === 'fixed') radius = beamFixedR;
+                else if (isMatched && hasResults) { const rr = results.filter(r => r.TX_Site === site && r.TX_Sector === sect); if (rr.length) radius = Math.max(...rr.map(r => r.Distance_km)) * 1.1; }
+                if (!isNaN(az)) {
+                    const poly = buildBeamPolygon(lat, lon, az, bw, radius);
+                    L.polygon(poly, { color: beamColor, fillColor: beamColor, fillOpacity: 0.35, weight: 2.5, opacity: 1 })
+                        .bindPopup(`<div style="font-family:Inter,sans-serif;font-size:13px;line-height:1.8;"><b>📡 ${site}${sect ? ' / ' + sect : ''}</b><br>Az: <b>${isNaN(az) ? '—' : az + '°'}</b> · ${isMatched ? '✅ Has RX' : '⚠️ No RX'}</div>`)
+                        .addTo(lgFocusHighlight);
+                    const tip = destPoint(lat, lon, az, radius); bounds.push([tip.lat, tip.lng]);
+                }
+                L.circleMarker([lat, lon], { radius: mSize + 4, color: '#fff', weight: 1.5, fillColor: cTx, fillOpacity: 0.9 }).addTo(lgFocusHighlight);
+                bounds.push([lat, lon]);
+                if (hasResults) {
+                    results.filter(r => r.TX_Site === site && r.TX_Sector === sect).forEach(r => {
+                        bounds.push([r.RX_Lat, r.RX_Long]);
+                        L.polyline([[r.TX_Lat, r.TX_Long], [r.RX_Lat, r.RX_Long]], { color: cLine, weight: 2, opacity: 0.9, dashArray: '6,4' }).addTo(lgFocusHighlight);
+                        L.circleMarker([r.RX_Lat, r.RX_Long], { radius: mSize + 2, color: '#fff', weight: 1.5, fillColor: cRx, fillOpacity: 0.9 })
+                            .bindPopup(`<b>🏗 ${r.RX_Site}</b><br>${r.RX_Lat.toFixed(5)}, ${r.RX_Long.toFixed(5)}`).addTo(lgFocusHighlight);
+                    });
+                }
+            });
+            if (bounds.length) { switchTab('map'); map.fitBounds(bounds, { padding: [80, 80], maxZoom: 15 }); }
+        }
+
+        function clearFocus() {
+            focusedItem = null;
+            document.getElementById('focusBadge').style.display = 'none';
+            document.getElementById('filterSearch').value = '';
+            filterQuery = '';
+            document.getElementById('filterClearBtn').style.display = 'none';
+            document.getElementById('matchList').style.display = 'none';
+            document.getElementById('filterStats').textContent = '';
+            if (lgFocusHighlight) lgFocusHighlight.clearLayers();
+        }
+        function clearFilter() {
+            document.getElementById('filterSearch').value = ''; filterQuery = '';
+            document.getElementById('filterClearBtn').style.display = 'none';
+            document.getElementById('matchList').style.display = 'none';
+            document.getElementById('filterStats').textContent = '';
+        }
+
+        // ─── Geo Helpers ──────────────────────────────────────────────────────────────
+        const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI;
+        function haversine(lat1, lon1, lat2, lon2) { const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1); const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2; return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); }
+        function bearingDeg(lat1, lon1, lat2, lon2) { const dLon = toRad(lon2 - lon1); const y = Math.sin(dLon) * Math.cos(toRad(lat2)); const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon); return (toDeg(Math.atan2(y, x)) + 360) % 360; }
+        function angularDiff(a, b) { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; }
+        function destPoint(lat, lon, brngDeg, distKm) { const R = 6371, d = distKm / R, b = toRad(brngDeg); const φ1 = toRad(lat), λ1 = toRad(lon); const φ2 = Math.asin(Math.sin(φ1) * Math.cos(d) + Math.cos(φ1) * Math.sin(d) * Math.cos(b)); const λ2 = λ1 + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(φ1), Math.cos(d) - Math.sin(φ1) * Math.sin(φ2)); return { lat: toDeg(φ2), lng: toDeg(λ2) }; }
+        function buildBeamPolygon(lat, lon, az, bw, r, steps = 12) { const half = bw / 2, pts = [[lat, lon]]; for (let i = 0; i <= steps; i++) { const angle = (az - half) + bw * (i / steps); const p = destPoint(lat, lon, angle, r); pts.push([p.lat, p.lng]); } pts.push([lat, lon]); return pts; }
+
+        // ─── Map Init ─────────────────────────────────────────────────────────────────
+        function ensureMap() {
+            if (map) return;
+            map = L.map('map', { zoomControl: false, preferCanvas: true, renderer: L.canvas() }).setView([20, 0], 2);
+            L.control.zoom({ position: 'bottomleft' }).addTo(map);
+            tileLayer = L.tileLayer(MAP_STYLES[currentMapStyle].url, { attribution: MAP_STYLES[currentMapStyle].attr, subdomains: 'abcd', maxZoom: 20 }).addTo(map);
+            
+            lgBeams = L.layerGroup();
+            lgLines = L.layerGroup();
+            lgRxRaw = L.layerGroup();
+            lgTxBeams = L.layerGroup();
+            lgTxRaw = L.layerGroup();
+            lgRxResult = L.layerGroup();
+            lgTxResult = L.layerGroup();
+            lgFocusHighlight = L.layerGroup();
+            
+            const isVisible = document.querySelector('input[name="mapDataMode"]:checked').value === 'show';
+            if (isVisible) {
+                [lgBeams, lgLines, lgRxRaw, lgTxBeams, lgTxRaw, lgRxResult, lgTxResult, lgFocusHighlight].forEach(l => l.addTo(map));
+            }
+
+        }
+
+
+
+        function centerMap() {
+            if (!map || !allBounds.length) return;
+            map.fitBounds(allBounds, { padding: [60, 60] });
+        }
+
+        // ─── Raw Preview ──────────────────────────────────────────────────────────────
+        function previewRawOnMap() {
+            ensureMap();
+            const cTx = document.getElementById('colorTx').value;
+            const cRx = document.getElementById('colorRx').value;
+            const cBM = document.getElementById('colorBeamMatch').value;
+            const cBN = document.getElementById('colorBeamNoMatch').value;
+            const bw = parseFloat(document.getElementById('beamwidth').value) || 65;
+            const beamMode = document.querySelector('input[name="beamMode"]:checked')?.value || 'auto';
+            const beamFixedR = (parseFloat(document.getElementById('beamRadius').value) || 3000) / 1000;
+            const previewR = beamMode === 'fixed' ? beamFixedR : DEFAULT_BEAM_KM;
+            const mSize = parseInt(document.getElementById('markerSize').value) || 8;
+            const fillOp = (parseInt(document.getElementById('fillOpacity').value) || 40) / 100;
+
+            lgTxRaw.clearLayers(); lgTxBeams.clearLayers(); lgRxRaw.clearLayers();
+            allBounds = [];
+            let txDrawn = 0, rxDrawn = 0, matchedBeams = 0, unmatchedBeams = 0;
+
+            if (txData.length) {
+                const loC = document.getElementById('m_tx_lon').value, laC = document.getElementById('m_tx_lat').value;
+                const snC = document.getElementById('m_tx_site').value, scC = document.getElementById('m_tx_sect').value, azC = document.getElementById('m_tx_az').value;
+                txData.forEach(row => {
+                    const lat = parseFloat(row[laC]), lon = parseFloat(row[loC]);
+                    if (isNaN(lat) || isNaN(lon)) return;
+                    const sn = row[snC] ?? '', sc = row[scC] ?? '', az = parseFloat(row[azC]);
+                    const txKey = `${sn}_${sc}`;
+                    const isMatched = matchedTxKeysGlobal.has(txKey);
+                    const beamColor = hasResults ? (isMatched ? cBM : cBN) : cBN;
+                    if (!isNaN(az)) {
+                        const poly = buildBeamPolygon(lat, lon, az, bw, previewR);
+                        L.polygon(poly, {
+                            color: beamColor, fillColor: beamColor,
+                            fillOpacity: isMatched && hasResults ? fillOp : fillOp * 0.45,
+                            weight: isMatched && hasResults ? 1.8 : 1.3,
+                            opacity: isMatched && hasResults ? 0.85 : 0.55,
+                            dashArray: isMatched && hasResults ? null : '4,3'
+                        })
+                            .bindPopup(`<div style="font-family:Inter,sans-serif;font-size:13px;line-height:1.8;"><b>📡 ${sn}${sc ? ' / ' + sc : ''}</b><br>Az: <b>${az}°</b></div>`)
+                            .addTo(lgTxBeams);
+                        if (isMatched && hasResults) matchedBeams++; else unmatchedBeams++;
+                    }
+                    L.circleMarker([lat, lon], { radius: mSize + 2, color: '#fff', weight: 1, fillColor: cTx, fillOpacity: 0.9 })
+                        .bindTooltip(`<b>${sn}</b>${sc ? ' / ' + sc : ''}${!isNaN(az) ? '<br>Az: ' + az + '°' : ''}`, {
+                            direction: 'top',
+                            permanent: showLabels,
+                            className: 'label-tooltip'
+                        })
+                        .addTo(lgTxRaw);
+                    allBounds.push([lat, lon]); txDrawn++;
+                });
+            }
+            if (rxData.length) {
+                const loC = document.getElementById('m_rx_lon').value, laC = document.getElementById('m_rx_lat').value, snC = document.getElementById('m_rx_site').value;
+                rxData.forEach(row => {
+                    const lat = parseFloat(row[laC]), lon = parseFloat(row[loC]);
+                    if (isNaN(lat) || isNaN(lon)) return;
+                    const sn = row[snC] ?? '';
+                    L.circleMarker([lat, lon], { radius: mSize, color: '#fff', weight: 1, fillColor: cRx, fillOpacity: 0.9 })
+                        .bindTooltip(`<b>${sn}</b>`, {
+                            direction: 'top',
+                            permanent: showLabels,
+                            className: 'label-tooltip'
+                        }).addTo(lgRxRaw);
+                    allBounds.push([lat, lon]); rxDrawn++;
+                });
+            }
+
+            document.getElementById('lgTxCount').textContent = txDrawn;
+            document.getElementById('lgRxCount').textContent = rxDrawn;
+            document.getElementById('lgBeamMatchCount').textContent = matchedBeams;
+            document.getElementById('lgBeamNoMatchCount').textContent = unmatchedBeams;
+            updateLegendColors();
+
+            if (allBounds.length) { map.fitBounds(allBounds, { padding: [60, 60], maxZoom: 14 }); document.getElementById('mapEmpty').style.display = 'none'; }
+        }
+
+        // ─── Result Layers ────────────────────────────────────────────────────────────
+        function redrawResults() {
+            if (!hasResults || !results.length) return;
+            const cTx = document.getElementById('colorTx').value, cRx = document.getElementById('colorRx').value;
+            const cBM = document.getElementById('colorBeamMatch').value, cBN = document.getElementById('colorBeamNoMatch').value;
+            const cLine = document.getElementById('colorLine').value;
+            const bw = parseFloat(document.getElementById('beamwidth').value) || 65;
+            const beamMode = document.querySelector('input[name="beamMode"]:checked')?.value || 'auto';
+            const beamFixedR = (parseFloat(document.getElementById('beamRadius').value) || 3000) / 1000;
+            const mSize = parseInt(document.getElementById('markerSize').value) || 8;
+            const fillOp = (parseInt(document.getElementById('fillOpacity').value) || 40) / 100;
+
+            lgBeams.clearLayers(); lgLines.clearLayers(); lgTxResult.clearLayers(); lgRxResult.clearLayers();
+            matchedTxKeysGlobal = new Set();
+
+            const txMaxDist = new Map();
+            results.forEach(r => { const k = `${r.TX_Site}_${r.TX_Sector}`; if ((r.Distance_km || 0) > (txMaxDist.get(k) || 0)) txMaxDist.set(k, r.Distance_km); });
+
+            const txSeen = new Set(), rxSeen = new Set();
+            let linkCount = 0;
+
+            results.forEach(r => {
+                const txKey = `${r.TX_Site}_${r.TX_Sector}`, rxKey = `${r.RX_Lat},${r.RX_Long}`;
+                matchedTxKeysGlobal.add(txKey);
+                if (!txSeen.has(txKey)) {
+                    txSeen.add(txKey);
+                    const radius = beamMode === 'fixed' ? beamFixedR : Math.max((txMaxDist.get(txKey) || 1) * 1.1, 0.5);
+                    const poly = buildBeamPolygon(r.TX_Lat, r.TX_Long, r.TX_Azimuth, bw, radius);
+                    L.polygon(poly, { color: cBM, fillColor: cBM, fillOpacity: fillOp, weight: 1.8, opacity: 0.9 })
+                        .bindPopup(`<div style="font-family:Inter,sans-serif;font-size:13px;line-height:1.8;"><b>📡 ${r.TX_Site} / ${r.TX_Sector}</b><br>Az: <b>${r.TX_Azimuth}°</b> · ✅ Matched</div>`)
+                        .addTo(lgBeams);
+                    L.circleMarker([r.TX_Lat, r.TX_Long], { radius: mSize + 4, color: '#fff', weight: 1.5, fillColor: cBM, fillOpacity: 0.9 })
+                        .bindTooltip(`<b>${r.TX_Site} / ${r.TX_Sector}</b>`, {
+                            direction: 'top',
+                            permanent: showLabels,
+                            className: 'label-tooltip'
+                        })
+                        .addTo(lgTxResult);
+                }
+                if (!rxSeen.has(rxKey)) {
+                    rxSeen.add(rxKey);
+                    L.circleMarker([r.RX_Lat, r.RX_Long], { radius: mSize + 2, color: '#fff', weight: 1.5, fillColor: cRx, fillOpacity: 0.9 })
+                        .bindTooltip(`<b>${r.RX_Site}</b>`, {
+                            direction: 'top',
+                            permanent: showLabels,
+                            className: 'label-tooltip'
+                        })
+                        .bindPopup(`<b>🏗 ${r.RX_Site}</b>`).addTo(lgRxResult);
+                }
+                L.polyline([[r.TX_Lat, r.TX_Long], [r.RX_Lat, r.RX_Long]], { color: cLine, weight: 1.8, opacity: 0.8, dashArray: '6,5' })
+                    .bindTooltip(`<b>${r.TX_Site}/${r.TX_Sector}</b> → <b>${r.RX_Site}</b><br>${r.Distance_km} km`, { sticky: true })
+                    .addTo(lgLines);
+                linkCount++;
+            });
+
+            // Rebuild raw layers with correct match coloring
+            lgTxBeams.clearLayers(); lgTxRaw.clearLayers();
+            const loC = document.getElementById('m_tx_lon').value, laC = document.getElementById('m_tx_lat').value;
+            const snC = document.getElementById('m_tx_site').value, scC = document.getElementById('m_tx_sect').value, azC = document.getElementById('m_tx_az').value;
+            const previewR = beamMode === 'fixed' ? beamFixedR : DEFAULT_BEAM_KM;
+            let matchedBeams = 0, unmatchedBeams = 0;
+
+            txData.forEach(row => {
+                const lat = parseFloat(row[laC]), lon = parseFloat(row[loC]);
+                if (isNaN(lat) || isNaN(lon)) return;
+                const sn = row[snC] ?? '', sc = row[scC] ?? '', az = parseFloat(row[azC]);
+                const txKey = `${sn}_${sc}`, isMatched = matchedTxKeysGlobal.has(txKey);
+                if (!isNaN(az) && !isMatched) {
+                    const poly = buildBeamPolygon(lat, lon, az, bw, previewR);
+                    L.polygon(poly, { color: cBN, fillColor: cBN, fillOpacity: fillOp * 0.45, weight: 1.3, opacity: 0.55, dashArray: '4,3' })
+                        .bindPopup(`<div style="font-family:Inter,sans-serif;font-size:13px;line-height:1.8;"><b>📡 ${sn}${sc ? ' / ' + sc : ''}</b><br>Az: <b>${az}°</b><br><span style="color:#f59e0b;">⚠ No RX matched</span></div>`)
+                        .addTo(lgTxBeams);
+                    unmatchedBeams++;
+                } else if (isMatched) { matchedBeams++; }
+                L.circleMarker([lat, lon], { radius: mSize + 2, color: '#fff', weight: 1, fillColor: cTx, fillOpacity: 0.9 })
+                    .bindTooltip(`<b>${sn}</b>${sc ? ' / ' + sc : ''}`, {
+                        direction: 'top',
+                        permanent: showLabels,
+                        className: 'label-tooltip'
+                    })
+                    .addTo(lgTxRaw);
+            });
+
+            document.getElementById('lgBeamMatchCount').textContent = matchedBeams;
+            document.getElementById('lgBeamNoMatchCount').textContent = unmatchedBeams;
+            document.getElementById('lgResultDivider').style.display = 'block';
+            document.getElementById('lgLinkRow').style.display = 'flex';
+            document.getElementById('lgLinkCount').textContent = linkCount;
+            updateLegendColors();
+            if (focusedItem) applyFocusOnMap(focusedItem);
+        }
+
+        function updateLegendColors() {
+            const cTx = document.getElementById('colorTx').value, cRx = document.getElementById('colorRx').value;
+            const cBM = document.getElementById('colorBeamMatch').value, cBN = document.getElementById('colorBeamNoMatch').value, cL = document.getElementById('colorLine').value;
+            document.getElementById('lgTxDot').style.background = cTx;
+            document.getElementById('lgRxDot').style.background = cRx;
+            document.getElementById('lgBeamMatch').style.cssText = `background:${cBM};opacity:0.7;border:1.5px solid ${cBM};width:22px;height:10px;border-radius:2px;flex-shrink:0;`;
+            document.getElementById('lgBeamNoMatch').style.cssText = `background:${cBN};opacity:0.55;border:1.5px dashed ${cBN};width:22px;height:10px;border-radius:2px;flex-shrink:0;`;
+            document.getElementById('lgLinkLine').style.borderTopColor = cL;
+        }
+
+        // ─── Main Calculation ─────────────────────────────────────────────────────────
+        function processData() {
+            if (!txData.length || !rxData.length) { showStatus('⚠️ Please load both TX and RX files first.', 'warn'); return; }
+            previewRawOnMap();
+            const bw = parseFloat(document.getElementById('beamwidth').value) || 65;
+            const topN = parseInt(document.getElementById('topN').value) || 1;
+            const distMode = document.querySelector('input[name="distMode"]:checked').value;
+            const maxDist = distMode === 'limited' ? parseFloat(document.getElementById('maxDist').value) : Infinity;
+            const m = getMapping();
+            
+            results = []; let skipped = 0; let index = 0;
+            const total = txData.length;
+            const chunkSize = Math.max(1, Math.floor(total / 20)); // Dynamically sized chunks (at least 20 UI updates)
+
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressPercent = document.getElementById('progressPercent');
+            const btnCalc = document.getElementById('btnProcess');
+
+            progressContainer.style.display = 'block';
+            if (btnCalc) btnCalc.disabled = true;
+
+            const processChunk = () => {
+                const end = Math.min(index + chunkSize, total);
+                for (; index < end; index++) {
+                    const tx = txData[index];
+                    const lat1 = parseFloat(tx[m.txLa]), lon1 = parseFloat(tx[m.txLo]), az = parseFloat(tx[m.txAz]);
+                    if (isNaN(lat1) || isNaN(lon1) || isNaN(az)) { skipped++; continue; }
+                    const hits = [];
+                    rxData.forEach(rx => {
+                        const lat2 = parseFloat(rx[m.rxLa]), lon2 = parseFloat(rx[m.rxLo]);
+                        if (isNaN(lat2) || isNaN(lon2)) return;
+                        if (lat1 === lat2 && lon1 === lon2) return;
+                        const dist = haversine(lat1, lon1, lat2, lon2);
+                        if (dist > maxDist) return;
+                        const brng = bearingDeg(lat1, lon1, lat2, lon2), diff = angularDiff(brng, az);
+                        if (diff <= bw / 2) hits.push({ TX_Site: tx[m.txS] ?? '', TX_Sector: tx[m.txSec] ?? '', TX_Lat: lat1, TX_Long: lon1, TX_Azimuth: az, RX_Site: rx[m.rxS] ?? '', RX_Lat: lat2, RX_Long: lon2, Distance_km: +dist.toFixed(4) });
+                    });
+                    hits.sort((a, b) => a.Distance_km - b.Distance_km);
+                    results.push(...hits.slice(0, topN));
+                }
+
+                const pct = Math.floor((index / total) * 100);
+                progressBar.style.width = pct + '%';
+                progressPercent.textContent = pct + '%';
+
+                if (index < total) {
+                    setTimeout(processChunk, 10);
+                } else {
+                    hasResults = true;
+                    if (results.length > 0) { 
+                        document.getElementById('btnDownload').disabled = false; 
+                        document.getElementById('btnKml').disabled = false; 
+                    }
+                    setTimeout(() => { 
+                        progressContainer.style.display = 'none'; 
+                        if (btnCalc) btnCalc.disabled = false;
+                        redrawResults();
+                        showStatus(`✅ Calculation complete. Found ${results.length} links.`, 'success');
+                    }, 500);
+                }
+            };
+
+            processChunk();
+        }
+
+        function getMapping() { return { txS: document.getElementById('m_tx_site').value, txSec: document.getElementById('m_tx_sect').value, txLo: document.getElementById('m_tx_lon').value, txLa: document.getElementById('m_tx_lat').value, txAz: document.getElementById('m_tx_az').value, rxS: document.getElementById('m_rx_site').value, rxLo: document.getElementById('m_rx_lon').value, rxLa: document.getElementById('m_rx_lat').value }; }
+
+
+
+        // ─── CSV Download ─────────────────────────────────────────────────────────────
+        function downloadCSV() {
+            if (!results.length) { showStatus('⚠️ No results to download.', 'warn'); return; }
+            const csv = Papa.unparse(results);
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = Object.assign(document.createElement('a'), { href: url, download: `rf_results_${Date.now()}.csv` });
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            showStatus('✅ CSV downloaded.', 'success');
+        }
+
+        // ─── KML Download ─────────────────────────────────────────────────────────────
+        function downloadKML() {
+            if (!txData.length && !rxData.length) { showStatus('⚠️ No data to download.', 'warn'); return; }
+            const m = getMapping();
+            const cTx = document.getElementById('colorTx').value, cRx = document.getElementById('colorRx').value;
+            const cBM = document.getElementById('colorBeamMatch').value;
+            const cBN = document.getElementById('colorBeamNoMatch').value;
+            const cLine = document.getElementById('colorLine').value;
+            const bw = parseFloat(document.getElementById('beamwidth').value) || 65;
+            const beamMode = document.querySelector('input[name="beamMode"]:checked')?.value || 'auto';
+            const beamFixedR = (parseFloat(document.getElementById('beamRadius').value) || 3000) / 1000;
+
+            const opacity = parseInt(document.getElementById('fillOpacity').value) || 40;
+            const alphaMatch = Math.round((opacity / 100) * 255).toString(16).padStart(2, '0').toLowerCase();
+            const alphaNoMatch = Math.round(((opacity * 0.45) / 100) * 255).toString(16).padStart(2, '0').toLowerCase();
+
+            const toKmlCol = (hex, alpha) => {
+                const r = hex.slice(1, 3), g = hex.slice(3, 5), b = hex.slice(5, 7);
+                return `${alpha}${b}${g}${r}`;
+            };
+            const toKmlColSolid = hex => {
+                const r = hex.slice(1, 3), g = hex.slice(3, 5), b = hex.slice(5, 7);
+                return `ff${b}${g}${r}`;
+            };
+
+            const kmlTx = toKmlColSolid(cTx), kmlRx = toKmlColSolid(cRx);
+            const kmlBeamMatch = toKmlCol(cBM, alphaMatch), kmlBeamNoMatch = toKmlCol(cBN, alphaNoMatch);
+            const kmlLine = toKmlColSolid(cLine);
+
+            const txMaxDist = new Map();
+            results.forEach(r => {
+                const k = `${r.TX_Site}_${r.TX_Sector}`;
+                if ((r.Distance_km || 0) > (txMaxDist.get(k) || 0)) txMaxDist.set(k, r.Distance_km);
+            });
+
+            let kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>RF Site-to-Site Analysis</name>
+  <Style id="txStyle"><IconStyle><color>${kmlTx}</color><scale>1.0</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle></Style>
+  <Style id="rxStyle"><IconStyle><color>${kmlRx}</color><scale>0.8</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_square.png</href></Icon></IconStyle></Style>
+  <Style id="beamMatchStyle">
+    <PolyStyle><color>${kmlBeamMatch}</color><fill>1</fill><outline>1</outline></PolyStyle>
+    <LineStyle><color>ff${kmlBeamMatch.slice(2)}</color><width>2</width></LineStyle>
+  </Style>
+  <Style id="beamNoMatchStyle">
+    <PolyStyle><color>${kmlBeamNoMatch}</color><fill>1</fill><outline>1</outline></PolyStyle>
+    <LineStyle><color>88${kmlBeamNoMatch.slice(2)}</color><width>1.5</width></LineStyle>
+  </Style>
+  <Style id="lineStyle"><LineStyle><color>${kmlLine}</color><width>2</width></LineStyle></Style>`;
+
+            // 1. All TX Sites and Beams Folder
+            kml += `<Folder><name>1. All TX Sites and Beams (${txData.length})</name>`;
+            txData.forEach(tx => {
+                const lat = parseFloat(tx[m.txLa]), lon = parseFloat(tx[m.txLo]), az = parseFloat(tx[m.txAz]);
+                if (isNaN(lat) || isNaN(lon)) return;
+                const site = tx[m.txS], sector = tx[m.txSec];
+                const txKey = `${site}_${sector}`;
+                const isMatched = txMaxDist.has(txKey);
+
+                // TX Point
+                kml += `<Placemark>
+                    <name><![CDATA[${site} / ${sector}]]></name>
+                    <description><![CDATA[<b>TX Site:</b> ${site}<br/><b>Sector ID:</b> ${sector}<br/><b>Azimuth:</b> ${az}°<br/><b>Lat:</b> ${lat}<br/><b>Lon:</b> ${lon}]]></description>
+                    <styleUrl>#txStyle</styleUrl>
+                    <Point><coordinates>${lon},${lat},0</coordinates></Point>
+                </Placemark>`;
+
+                // TX Beam
+                const radius = beamMode === 'fixed' ? beamFixedR : (isMatched ? Math.max(txMaxDist.get(txKey) * 1.1, 0.5) : 3);
+                const poly = buildBeamPolygon(lat, lon, az, bw, radius);
+                kml += `<Placemark>
+                    <name><![CDATA[Beam: ${site} / ${sector}${isMatched ? ' (Matched)' : ''}]]></name>
+                    <description><![CDATA[<b>Sector Coverage</b><br/><b>Site:</b> ${site}<br/><b>Sector:</b> ${sector}<br/><b>Radius:</b> ${radius.toFixed(2)} km<br/><b>Status:</b> ${isMatched ? '✅ Has Match' : '⚠️ No Match'}]]></description>
+                    <styleUrl>${isMatched ? '#beamMatchStyle' : '#beamNoMatchStyle'}</styleUrl>
+                    <Polygon><outerBoundaryIs><LinearRing><coordinates>${poly.map(p => `${p[1]},${p[0]},0`).join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon>
+                </Placemark>`;
+            });
+
+            kml += `</Folder>`;
+
+            // 2. All RX Sites Folder
+            kml += `<Folder><name>2. All RX Sites (${rxData.length})</name>`;
+            const rxSeenGlobal = new Set();
+            rxData.forEach(rx => {
+                const lat = parseFloat(rx[m.rxLa]), lon = parseFloat(rx[m.rxLo]);
+                if (isNaN(lat) || isNaN(lon)) return;
+                const key = `${lat},${lon}`;
+                if (rxSeenGlobal.has(key)) return;
+                rxSeenGlobal.add(key);
+                const name = rx[m.rxS];
+                kml += `<Placemark>
+                    <name><![CDATA[${name}]]></name>
+                    <description><![CDATA[<b>RX Site:</b> ${name}<br/><b>Lat:</b> ${lat}<br/><b>Lon:</b> ${lon}]]></description>
+                    <styleUrl>#rxStyle</styleUrl>
+                    <Point><coordinates>${lon},${lat},0</coordinates></Point>
+                </Placemark>`;
+            });
+            kml += `</Folder>`;
+
+            // 3. Calculated Links folder
+            if (results.length > 0) {
+                kml += `<Folder><name>3. Calculated Links (${results.length})</name>`;
+                results.forEach(r => {
+                    kml += `<Placemark>
+                        <name><![CDATA[${r.TX_Site} -> ${r.RX_Site}]]></name>
+                        <description><![CDATA[<b>Link Details</b><br/><b>From:</b> ${r.TX_Site} (${r.TX_Sector})<br/><b>To:</b> ${r.RX_Site}<br/><b>Distance:</b> ${r.Distance_km} km]]></description>
+                        <styleUrl>#lineStyle</styleUrl>
+                        <LineString><coordinates>${r.TX_Long},${r.TX_Lat},0 ${r.RX_Long},${r.RX_Lat},0</coordinates></LineString>
+                    </Placemark>`;
+                });
+                kml += `</Folder>`;
+            }
+
+            kml += '</Document></kml>';
+            const blob = new Blob([kml], { type: 'application/vnd.google-earth.kml+xml' });
+            const url = URL.createObjectURL(blob);
+            const a = Object.assign(document.createElement('a'), { href: url, download: `rf_full_analysis_${Date.now()}.kml` });
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+            showStatus('✅ Interactive KML downloaded.', 'success');
+        }
+
+        // ─── Clear All ────────────────────────────────────────────────────────────────
+        function resetToDefaults(silent = false) {
+            // 1. Settings Reset
+            const mapHide = document.getElementById('radioMapHide'); if (mapHide) mapHide.click();
+            const labelHide = document.getElementById('radioLabelHide'); if (labelHide) labelHide.click();
+            const distUnlimited = document.getElementById('radioUnlimited'); if (distUnlimited) distUnlimited.click();
+            const beamFixed = document.getElementById('radioBeamFixed'); if (beamFixed) beamFixed.click();
+            syncValue('beamRadius', 250, 'input');
+            syncValue('markerSize', 1, 'input');
+            syncValue('fillOpacity', 73, 'input');
+            const legendHide = document.getElementById('radioLegendHide'); if (legendHide) legendHide.click();
+            
+            // 2. Data & State Reset
+            txData = []; rxData = []; results = [];
+            hasResults = false; focusedItem = null;
+            
+            // 3. UI Element Reset
+            const txDz = document.getElementById('txDropzone'); if (txDz) txDz.classList.remove('loaded');
+            const txLbl = document.getElementById('txFileLabel'); if (txLbl) txLbl.innerHTML = 'CSV / TXT / Excel (.xls, .xlsx)';
+            const rxDz = document.getElementById('rxDropzone'); if (rxDz) rxDz.classList.remove('loaded');
+            const rxLbl = document.getElementById('rxFileLabel'); if (rxLbl) rxLbl.innerHTML = 'CSV / TXT / Excel (.xls, .xlsx)';
+            const fPnl = document.getElementById('filterPanel'); if (fPnl) fPnl.style.display = 'none';
+            const fBdg = document.getElementById('focusBadge'); if (fBdg) fBdg.style.display = 'none';
+            const btnD = document.getElementById('btnDownload'); if (btnD) btnD.disabled = true;
+            const btnK = document.getElementById('btnKml'); if (btnK) btnK.disabled = true;
+            const pCtn = document.getElementById('progressContainer'); if (pCtn) pCtn.style.display = 'none';
+            
+            // 4. Map Reset
+            if (map) {
+                [lgBeams, lgLines, lgRxRaw, lgTxBeams, lgTxRaw, lgRxResult, lgTxResult, lgFocusHighlight].forEach(l => {
+                    if (l) l.clearLayers();
+                });
+                map.setView([20, 0], 2);
+                const mapEmpty = document.getElementById('mapEmpty'); if (mapEmpty) mapEmpty.style.display = 'flex';
+            }
+            if (!silent) showStatus('✨ All settings and data have been reset to defaults.', 'success');
+        }
+
+        // ─── UI Helpers ───────────────────────────────────────────────────────────────
+        function toggleSidebar() { sidebarOpen = !sidebarOpen; document.getElementById('sidebar').classList.toggle('collapsed', !sidebarOpen); document.getElementById('mainContent').classList.toggle('expanded', !sidebarOpen); setTimeout(() => { if (map) map.invalidateSize(); }, 320); }
+        function switchTab(tab) { activeTab = tab; if (tab === 'map' && map) setTimeout(() => map.invalidateSize(), 50); }
+        function onDistModeChange(radio) {
+            const limited = radio.value === 'limited';
+            document.getElementById('distLimitInput').style.display = limited ? 'block' : 'none';
+            document.getElementById('radioUnlimited').classList.toggle('active', radio.value === 'unlimited');
+            document.getElementById('radioLimited').classList.toggle('active', radio.value === 'limited');
+            if (limited) {
+                const s = document.getElementById('maxDistSlider');
+                if (s) updateSliderTrack(s);
+            }
+        }
+
+        function onBeamModeChange(radio) {
+            const fixed = radio.value === 'fixed';
+            document.getElementById('beamRadiusInput').style.display = fixed ? 'block' : 'none';
+            document.getElementById('beamAutoHint').style.display = fixed ? 'none' : 'block';
+            document.getElementById('radioBeamAuto').classList.toggle('active', !fixed);
+            document.getElementById('radioBeamFixed').classList.toggle('active', fixed);
+            if (fixed) {
+                const s = document.getElementById('beamRadiusSlider');
+                if (s) updateSliderTrack(s);
+            }
+            previewRawOnMap();
+            if (hasResults) redrawResults();
+        }
+
+        function syncValue(id, val, src) {
+            const num = document.getElementById(id);
+            const slid = document.getElementById(id + 'Slider');
+            if (src === 'slider') {
+                num.value = val;
+            } else {
+                if (slid) slid.value = val;
+            }
+            if (slid) updateSliderTrack(slid);
+
+            // Immediate preview updates for relevant fields
+            if (['beamwidth', 'beamRadius', 'markerSize', 'fillOpacity'].includes(id)) {
+                previewRawOnMap();
+                if (hasResults) redrawResults();
+            }
+        }
+
+        function updateSliderTrack(el) {
+            const min = parseFloat(el.min) || 0;
+            const max = parseFloat(el.max) || 100;
+            const val = parseFloat(el.value);
+            const percent = ((val - min) / (max - min)) * 100;
+            el.style.setProperty('--val', percent + '%');
+        }
+
+
+
+        function onLabelToggle(show) {
+            showLabels = show;
+            document.getElementById('radioLabelShow').classList.toggle('active', show);
+            document.getElementById('radioLabelHide').classList.toggle('active', !show);
+            previewRawOnMap();
+            if (hasResults) redrawResults();
+        }
+
+        function toggleMapData(show) {
+            if (!map) return;
+            [lgBeams, lgLines, lgRxRaw, lgTxBeams, lgTxRaw, lgRxResult, lgTxResult, lgFocusHighlight].forEach(l => {
+                if (l) {
+                    if (show) map.addLayer(l);
+                    else map.removeLayer(l);
+                }
+            });
+            document.getElementById('radioMapShow').classList.toggle('active', show);
+            document.getElementById('radioMapHide').classList.toggle('active', !show);
+        }
+
+        function onLegendToggle(show) {
+            const el = document.getElementById('mapLegend');
+            if (el) el.style.display = show ? 'block' : 'none';
+            document.getElementById('radioLegendShow').classList.toggle('active', show);
+            document.getElementById('radioLegendHide').classList.toggle('active', !show);
+        }
+
+        // ─── Layer Switcher ───────────────────────────────────────────────────────────
+        function toggleLayerSwitcher(e) {
+            if (e) e.stopPropagation();
+            layerSwitcherOpen = !layerSwitcherOpen;
+            renderLayerSwitcher();
+        }
+        function setMapStyle(key) { currentMapStyle = key; layerSwitcherOpen = false; if (tileLayer) tileLayer.setUrl(MAP_STYLES[key].url); renderLayerSwitcher(); }
+        function renderLayerSwitcher() {
+            const c = document.getElementById('layerSwitcher');
+            if (!layerSwitcherOpen) {
+                c.innerHTML = `<div class="layer-switcher-collapsed" onclick="toggleLayerSwitcher(event)"><img id="layerThumb" src="${MAP_STYLES[currentMapStyle].thumb}" alt="style"></div>`;
+            } else {
+                const tiles = Object.entries(MAP_STYLES).map(([k, v]) => `
+            <div class="layer-tile ${currentMapStyle === k ? 'active' : ''}" onclick="setMapStyle('${k}')">
+                <div class="layer-tile-img">
+                    <img src="${v.thumb}" alt="${v.label}" onerror="this.src='https://basemaps.cartocdn.com/light_all/5/15/12.png'">
+                </div>
+                <div class="layer-tile-label">${v.label.split(' ')[0]}</div>
+            </div>`).join('');
+                c.innerHTML = `<div class="layer-switcher-expanded">${tiles}</div>`;
+            }
+        }
+
+        function showStatus(msg, type = 'info') {
+            const bar = document.getElementById('statusBar');
+            bar.style.display = 'flex';
+            bar.className = `status-bar${type === 'error' ? ' error' : type === 'warn' ? ' warn' : ''}`;
+            bar.textContent = msg;
+            clearTimeout(bar._t); bar._t = setTimeout(() => { bar.style.display = 'none'; }, 5000);
+        }
+
+        window.onload = () => {
+            resetToDefaults(true); // Silent reset on load
+            ensureMap();
+            renderLayerSwitcher();
+            updateLegendColors();
+            // Initialize sliders
+            document.querySelectorAll('input[type="range"].slicer').forEach(s => updateSliderTrack(s));
+
+            document.addEventListener('click', e => {
+                const ls = document.getElementById('layerSwitcher');
+                if (layerSwitcherOpen && ls && !ls.contains(e.target)) { layerSwitcherOpen = false; renderLayerSwitcher(); }
+            });
+        };
+    </script>
+</body>
+
+</html>
