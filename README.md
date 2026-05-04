@@ -285,11 +285,9 @@ SiteZ,40.7800,-73.9500
 
 ## File Structure
 
-```
 .
 ├── README.md
-└── Sector To Site Version 2.html
-```
+└── Sector To Site.html
 
 ---
 
