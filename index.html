@@ -1308,6 +1308,9 @@
                 if (displayTxSites.length > 0) {
                     // FIX: Replaced "TX Sectors & Beams" with escaped text to avoid line 30 parsing error
                     kml += `<Folder><name>TX Sectors &amp; Beams</name>\n`;
+                    
+                    const drawnTxSites = new Set(); 
+
                     displayTxSites.forEach(tx => {
                         const key = `${tx.site}_${tx.sector}`;
                         const isMatched = matchedTxKeys.has(key);
@@ -1342,8 +1345,11 @@
                             kml += `<Placemark>\n<name>${escapeXml(cleanSector || tx.site)} Beam</name>\n<styleUrl>${styleRef}</styleUrl>\n<description><![CDATA[${popupHtml}]]></description>\n<Polygon><outerBoundaryIs><LinearRing><coordinates>${coords}</coordinates></LinearRing></outerBoundaryIs></Polygon>\n</Placemark>\n`;
                         }
 
-                        // SITE ICON — name shows site only; no popup on click
-                        kml += `<Placemark>\n<name>${escapeXml(tx.site)}</name>\n<styleUrl>${calcMode === 'combined' ? '#rxIconStyle' : '#txIconStyle'}</styleUrl>\n<Point><coordinates>${tx.lng},${tx.lat},0</coordinates></Point>\n</Placemark>\n`;
+                        if (!drawnTxSites.has(tx.site)) {
+                            drawnTxSites.add(tx.site);
+                            // SITE ICON — name shows site only; no popup on click
+                            kml += `<Placemark>\n<name>${escapeXml(tx.site)}</name>\n<styleUrl>${calcMode === 'combined' ? '#rxIconStyle' : '#txIconStyle'}</styleUrl>\n<Point><coordinates>${tx.lng},${tx.lat},0</coordinates></Point>\n</Placemark>\n`;
+                        }
                     });
                     kml += `</Folder>\n`;
                 }
@@ -1403,7 +1409,7 @@
                                                 <span className="accordion-title">1. MODE</span>
                                                 <Chevron open={acc.mode} />
                                             </div>
-{acc.mode && (
+                                            {acc.mode && (
                                                 <div className="accordion-body">
                                                     <div className="mode-selector" style={{ marginBottom: 0 }}>
                                                         <div className={`mode-option ${calcMode === 'combined' ? 'active' : ''}`}
@@ -1453,7 +1459,7 @@
                                                 {acc.rx && (
                                                     <div className="accordion-body">
                                                         <div style={{fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: '8px', textAlign: 'center'}}>
-Site File
+                                                            Site File
                                                         </div>
                                                         <div className="dropzone" onClick={() => document.getElementById('rxF').click()}>
                                                             <Icons.Upload />
@@ -1528,7 +1534,7 @@ Site File
                                     </>
                                 )}
 
-{/* STYLE */}
+                                {/* STYLE */}
                                 {pfcTab === 'style' && (
                                     <>
                                         <div className="accordion-section">
@@ -1565,7 +1571,7 @@ Site File
                                                                     {txIcon.url && txIcon.url !== 'VECTOR_CIRCLE' ? (
                                                                         <img src={getIconUrl(txIcon.url)} style={{ maxWidth: '16px', maxHeight: '16px', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
                                                                     ) : null}
-                                                                    <div style={{ display: txIcon.url === 'VECTOR_CIRCLE' || !txIcon.url ? 'flex' : 'none', position: 'absolute', width: '12px', height: '12px', background: txIcon.color, borderRadius: '50%' }}></div>
+                                                                    <div style={{ display: txIcon.url === 'VECTOR_CIRCLE' || !rxIcon.url ? 'flex' : 'none', position: 'absolute', width: '12px', height: '12px', background: txIcon.color, borderRadius: '50%' }}></div>
                                                                 </div>
                                                             </div>
                                                             <div className="style-row" style={{marginBottom: '12px'}}>
@@ -1675,18 +1681,18 @@ Site File
                                             )}
                                         </div>
                                     </>
-)}
+                                )}
 
                                 {/* FILTER TAB */}
                                 {pfcTab === 'filter' && (
                                     <>
-                                {/* SEARCH & FILTER */}
-                                <div className="accordion-section">
-                                    <div className="accordion-header" onClick={() => toggleAcc('search')}>
-                                        <span className="accordion-title">{calcMode === 'combined' ? '8.' : '10.'} SEARCH & FILTER</span>
-                                        <Chevron open={acc.search} />
-                                    </div>
-                                    {acc.search && (
+                                        {/* SEARCH & FILTER */}
+                                        <div className="accordion-section">
+                                            <div className="accordion-header" onClick={() => toggleAcc('search')}>
+                                                <span className="accordion-title">{calcMode === 'combined' ? '8.' : '10.'} SEARCH & FILTER</span>
+                                                <Chevron open={acc.search} />
+                                            </div>
+                                            {acc.search && (
                                                 <div className="accordion-body">
                                                     <div className="form-group">
                                                         <label>Search</label>
@@ -1744,23 +1750,32 @@ Site File
                                                         </label>
                                                         {beamMode === 'fixed' && <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}><input type="range" className="thin-slider" min="100" max="10000" step="100" value={beamRadius} onChange={e => setBeamRadius(parseInt(e.target.value))} style={{ flex: 1 }} /><span style={{ fontSize: '11px' }}>{beamRadius}m</span></div>}
                                                     </div>
+                                                    
                                                     <div className="form-group">
                                                         <label>Max Nearest Neighbors (N)</label>
                                                         <input type="number" className="form-control" min="1" max="50" value={nNeighbors} onChange={e => setNNeighbors(parseInt(e.target.value))} />
                                                     </div>
 
                                                     <div className="form-group">
-                                                        <label>Distance Limit & Unit</label>
+                                                        <label>Distance Unit</label>
+                                                        <select className="form-control" value={distUnit} onChange={e => setDistUnit(e.target.value)}>
+                                                            <option value="km">Kilometers (km)</option>
+                                                            <option value="m">Meters (m)</option>
+                                                            <option value="mi">Miles (mi)</option>
+                                                            <option value="ft">Feet (ft)</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="form-group">
+                                                        <label>Distance Limit</label>
                                                         <div style={{ display: 'flex', gap: '6px' }}>
                                                             <select className="form-control" style={{ width: '30%' }} value={distOp} onChange={e => setDistOp(e.target.value)}>
                                                                 <option value="<">&lt;</option><option value="<=">&lt;=</option><option value="=">=</option><option value=">">&gt;</option><option value=">=">&gt;=</option>
                                                             </select>
-                                                            <input type="number" className="form-control" style={{ width: '40%' }} placeholder="Limit..." value={maxDist} onChange={e => setMaxDist(e.target.value)} />
-                                                            <select className="form-control" style={{ width: '30%' }} value={distUnit} onChange={e => setDistUnit(e.target.value)}>
-                                                                <option value="km">km</option><option value="m">m</option><option value="mi">mi</option><option value="ft">ft</option>
-                                                            </select>
+                                                            <input type="number" className="form-control" style={{ width: '70%' }} placeholder={`Limit in ${distUnit}...`} value={maxDist} onChange={e => setMaxDist(e.target.value)} />
                                                         </div>
                                                     </div>
+
                                                 </div>
                                             )}
                                         </div>
