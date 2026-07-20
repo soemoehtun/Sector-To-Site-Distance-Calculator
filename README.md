@@ -12,14 +12,19 @@ This application calculates distances between sector locations (TX) and site loc
 
 ## Features
 
-- **CSV/Excel Import** - Load sector and site data from CSV or Excel files
+- **Dual Mode** - Use a single sector file (combined) or separate sector & site files
+- **CSV/Excel Import** - Load data from CSV, TXT, XLS, or XLSX files
 - **Interactive Map** - Visualize data on a Leaflet-powered map with marker clustering
-- **Distance Calculation** - Calculate distances between sectors and sites using Haversine algorithm
+- **Distance Calculation** - Calculate distances using the Haversine algorithm
 - **Beam Coverage Analysis** - Filter results based on sector azimuth and beamwidth
-- **Data Export** - Export results to CSV, Excel, or KML format
-- **Search & Filter** - Find specific sectors or sites by name
-- **Grid View** - View data in tabular format with sorting and filtering
-- **Visual Beam Display** - Show sector beam coverage polygons on the map
+- **KMZ Export** - Export results to KMZ format for Google Earth
+- **Excel Export** - Export results to XLSX format
+- **Search & Filter** - Find specific sectors/sites by name, column value, or beam match status
+- **Icon Picker** - Customize TX and RX marker icons with color, scale, and opacity
+- **Visual Beam Display** - Show sector beam coverage polygons with match/no-match colors
+- **Link Lines** - Display connection lines between matched TX-RX pairs
+- **Map Layer Switcher** - Choose between Light, Dark, Satellite, or OSM base maps
+- **Visibility Controls** - Toggle labels, beams, markers, and legend independently
 
 ---
 
@@ -43,52 +48,17 @@ distance = R × c
 - `R` = Earth's radius (6,371 km)
 - `distance` = result in kilometers
 
-#### Implementation:
-```javascript
-function haversine(lat1, lon1, lat2, lon2) {
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat/2)² + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)²;
-    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-```
-
 ### 2. Bearing Calculation
 
 **Bearing** (azimuth) is the direction from point 1 to point 2, measured in degrees clockwise from North.
-
-#### Formula:
-```
-θ = atan2(sin(Δlon) × cos(lat2), cos(lat1) × sin(lat2) - sin(lat1) × cos(lat2) × cos(Δlon))
-bearing = (θ × 180/π + 360) % 360
-```
-
-#### Implementation:
-```javascript
-function bearingDeg(lat1, lon1, lat2, lon2) {
-    const dLon = toRad(lon2 - lon1);
-    const y = Math.sin(dLon) * Math.cos(toRad(lat2));
-    const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) - Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLon);
-    return (toDeg(Math.atan2(y, x)) + 360) % 360;
-}
-```
 
 ### 3. Angular Difference
 
 To determine if a site falls within a sector's beam, calculate the angular difference between the bearing to the site and the sector's azimuth.
 
-#### Formula:
 ```
 angularDiff = |bearing - azimuth| mod 360
 if (angularDiff > 180) then angularDiff = 360 - angularDiff
-```
-
-#### Implementation:
-```javascript
-function angularDiff(a, b) {
-    const d = Math.abs(a - b) % 360;
-    return d > 180 ? 360 - d : d;
-}
 ```
 
 ### 4. Beam Coverage Filter
@@ -102,7 +72,6 @@ Example: If a sector has azimuth 90° and beamwidth 65°, the coverage spans fro
 
 ### 5. Distance Units Support
 
-The tool supports multiple distance units with automatic conversion:
 - **Kilometers (km)** - Default, native unit from Haversine
 - **Meters (m)** - Multiply km by 1000
 - **Feet (ft)** - Multiply km by 3280.84
@@ -110,16 +79,34 @@ The tool supports multiple distance units with automatic conversion:
 
 ---
 
+## Calculation Modes
+
+### Combined Mode (Sector File Only)
+- Upload a single sector file containing both site and sector data
+- RX sites are automatically derived from unique TX site locations
+- Ideal when all sites are in one spreadsheet
+
+### Separate Mode (Sector & Site)
+- Upload a TX sector file and a separate RX site file independently
+- Useful when sector and site data come from different sources
+- Allows analysis between two different site databases
+
+---
+
 ## Complete Data Flow
 
 ```
-1. User imports TX (Sector) file
+1. User selects calculation mode (Combined or Separate)
+
+2. User imports TX (Sector) file
    └─→ Parse CSV/Excel → Extract: Site, Sector, Lat, Lng, Azimuth
 
-2. User imports RX (Site) file
+3. [Separate Mode] User imports RX (Site) file
    └─→ Parse CSV/Excel → Extract: Site, Lat, Lng
 
-3. User clicks "Calculate"
+4. User maps columns and configures settings
+
+5. User clicks "Calculate & Draw"
    └─→ For each TX sector:
        ├─→ Calculate bearing to each RX site
        ├─→ Filter by beamwidth (angular difference)
@@ -127,7 +114,7 @@ The tool supports multiple distance units with automatic conversion:
        ├─→ Sort by distance (nearest first)
        └─→ Return top N nearest sites
 
-4. Display results on Map and Grid
+6. Results displayed on Map with beams, lines, and markers
 ```
 
 ---
@@ -143,7 +130,7 @@ The tool supports multiple distance units with automatic conversion:
 | Longitude | Number | Yes | GPS longitude (-180 to 180) |
 | Azimuth | Number | Yes | Beam direction in degrees (0-360) |
 
-### RX (Site) Data - Required Fields
+### RX (Site) Data - Required Fields (Separate Mode)
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | Site Name | String | Yes | RX site identifier |
@@ -171,106 +158,125 @@ SiteZ,40.7800,-73.9500
 
 ## Usage Guide
 
-### Step 1: Prepare Your Data
-- Export sector data with azimuth values from your network planning tool
-- Export site data with GPS coordinates
-- Ensure latitude/longitude are in decimal degrees format
-- Save as CSV or Excel (.xlsx)
+### Step 1: Select Mode
+1. Open `index.html` in a web browser
+2. In the **Upload** tab, expand **Mode**
+3. Choose **Sector File Only** (combined) or **Sector & Site** (separate)
 
 ### Step 2: Import TX Sectors
-1. Open `Sector To Site Version 2.html` in a web browser
-2. Click the **Sectors** tab in the left panel
-3. Drag & drop or browse to select your CSV/Excel file
-4. Map column names (Site, Sector, Lat, Lng, Azimuth)
-5. Click **Load Data**
-
-### Step 3: Import RX Sites
-1. Click the **Sites** tab in the left panel
+1. Expand **Sector File**
 2. Drag & drop or browse to select your CSV/Excel file
-3. Map column names (Site, Lat, Lng)
-4. Click **Load Data**
+3. Confirm the record count loads successfully
 
-### Step 4: Configure Calculation
-1. Expand the **Calculation Settings** accordion
-2. Set **Beamwidth** (default: 65°, range: 10-360)
-3. Set **Max Distance** filter (optional)
-4. Set **Number of Neighbors** (how many sites per sector)
-5. Select **Distance Unit** (km, m, ft, mi)
+### Step 3: Import RX Sites (Separate Mode Only)
+1. Expand **Site File**
+2. Drag & drop or browse to select your CSV/Excel file
 
-### Step 5: Run Calculation
-1. Click **Calculate** button
-2. Wait for progress bar to complete
-3. View results in Map or Grid view
+### Step 4: Map Columns
+1. Switch to the **Columns** tab
+2. Map each required field (Site, Sector, Lat, Lng, Azimuth) to the correct column from your file
 
-### Step 6: Export Results
-1. Click **Export** button
-2. Choose format: CSV, Excel, or KML
-3. Save file to your computer
+### Step 5: Configure Style (Optional)
+1. Switch to the **Style** tab
+2. Customize marker icons, beam colors, line settings, and visibility
+
+### Step 6: Configure Analysis Settings
+1. Switch to the **Analysis** tab
+2. Set **Beamwidth** (default: 65°)
+3. Set **Beam Radius Display** (Fixed or Auto)
+4. Set **Max Nearest Neighbors** (default: 3)
+5. Set **Distance Unit** (km, m, mi, ft)
+6. Set **Distance Limit** (optional)
+
+### Step 7: Run Calculation
+1. Click **Calculate & Draw**
+2. Wait for the progress bar to complete
+3. View results on the map
+
+### Step 8: Export Results
+1. Click **Export KMZ** for Google Earth, or **Export Excel** for spreadsheet
+2. Save the file to your computer
 
 ---
 
-## Calculation Settings Explained
+## Calculation Settings
 
 | Setting | Description | Default |
 |---------|-------------|---------|
 | Beamwidth | Horizontal beam angle in degrees | 65° |
-| Max Distance | Filter results by maximum distance | None |
-| Distance Operator | Comparison operator (<, <=, >, >=, =) | < |
-| Neighbors | Number of nearest sites to return per sector | 5 |
+| Beam Radius Display | Fixed (manual km) or Auto (based on result) | Fixed |
+| Max Nearest Neighbors | Number of nearest sites to return per sector | 3 |
 | Distance Unit | Output unit for distances | km |
-| Exclude Zero | Skip sites at exact same coordinates | Enabled |
+| Distance Limit | Filter results by distance with operator (<, <=, >, >=, =) | None |
 
 ---
 
 ## Map Visualization
 
 ### Marker Types
-- **TX Markers (Circles)** - Represent sectors with azimuth direction
-- **RX Markers (Dots)** - Represent receive sites
-- **Beam Polygons** - Show sector coverage area
+- **TX Markers** - Represent sector source locations (default: green blank paddle)
+- **RX Markers** - Represent nearest neighbor sites (default: red blank paddle)
 
-### Beam Display Modes
-- **Fixed Radius** - Display beam as circle with fixed kilometer radius
-- **Match Only** - Show beams only for sectors with matching sites
-- **No Match** - Show beams for sectors without matching sites
+### Beam Display
+- **Matched Beams** - Solid polygons for sectors with found neighbors
+- **Unmatched Beams** - Dashed polygons for sectors with no matches
+- **Link Lines** - Dashed lines connecting TX to matched RX sites
 
 ### Map Layers
-- **Standard** - Default OpenStreetMap tiles
-- **Satellite** - Satellite imagery
-- **Terrain** - Topographic map view
-- **Dark** - Dark mode map
+- **Light** - CartoDB light basemap
+- **Dark** - CartoDB dark basemap
+- **Satellite** - ArcGIS satellite imagery
+- **OSM** - OpenStreetMap standard tiles
+
+### Visibility Controls
+- TX/RX Site Markers toggle
+- Site Labels toggle
+- Beam Labels toggle
+- Legend toggle
+
+---
+
+## Search & Filter
+
+- **Text Search** - Filter sites by name (partial match)
+- **Column Filter** - Filter TX sectors by a specific column value
+- **Beam Match Filter** - Show all, matched only, or unmatched only
 
 ---
 
 ## Troubleshooting
 
 ### "Missing TX or RX data" Error
-- Ensure both sector and site files are loaded
-- Check that all required columns are mapped
+- Ensure the sector file is loaded and columns are mapped
+- In separate mode, ensure the site file is also loaded
 
 ### No Results After Calculation
 - Increase beamwidth value
 - Increase max distance limit
 - Check azimuth values are in range 0-360
+- Verify the beam match filter is set to "All"
 
 ### Incorrect Distances
 - Verify coordinate format (decimal degrees)
 - Ensure latitude/longitude columns are correctly mapped
 
 ### File Upload Issues
+- Supported formats: CSV, TXT, XLS, XLSX
 - CSV files should be UTF-8 encoded
-- Excel files should have data in first sheet
-- Maximum file size: 10MB
+- Excel files should have data in the first sheet
 
 ---
 
 ## Technology Stack
 
 - **React 18** - UI framework (via CDN)
+- **Babel Standalone** - JSX transformation in browser
 - **Leaflet 1.9.4** - Interactive maps
+- **Leaflet MarkerCluster 1.5.3** - Map marker clustering
 - **PapaParse 5.4.1** - CSV parsing
 - **SheetJS (XLSX) 0.18.5** - Excel file handling
-- **Leaflet MarkerCluster 1.5.3** - Map marker clustering
+- **JSZip 3.10.1** - KMZ archive generation
+- **Google Earth KML Icons** - Marker icon library
 
 ---
 
@@ -285,9 +291,11 @@ SiteZ,40.7800,-73.9500
 
 ## File Structure
 
+```
 .
 ├── README.md
-└── Sector To Site.html
+└── index.html
+```
 
 ---
 

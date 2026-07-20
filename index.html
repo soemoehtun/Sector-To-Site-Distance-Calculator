@@ -902,7 +902,7 @@
         const ModernIconPickerInner = ({ isOpen, onClose, currentIcon, onSelect }) => {
             const [selectedIcon, setSelectedIcon] = useState(currentIcon?.url || '');
             const [selectedColor, setSelectedColor] = useState(currentIcon?.color || '#ffffff');
-            const [selectedScale, setSelectedScale] = useState(0.5);
+            const [selectedScale, setSelectedScale] = useState(1.0);
             const [selectedOpacity, setSelectedOpacity] = useState(currentIcon?.opacity !== undefined ? currentIcon.opacity : 1.0);
 
             const [customIcons, setCustomIcons] = useState(() => {
@@ -1036,7 +1036,7 @@
                             <div style={{ background: '#fff', border: '2px solid #8ccbf8', padding: 8, flex: 1, overflowY: 'auto' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(30px, 1fr))', gap: 4 }}>
                                     {allIconsList.map((ic, idx) => {
-                                        const iconUrl = ic.isCustom ? ic.url : getIconUrl(ic.url, '#333333');
+                                        const iconUrl = ic.isCustom ? ic.url : getIconUrl(ic.url, '#ffffff');
                                         const isActive = selectedIcon === ic.url;
                                         return (
                                             <div
@@ -1390,8 +1390,8 @@
 
             // Style State - Default RED-BLANK
             const [mapStyle, setMapStyle] = useState('light');
-            const [txIcon, setTxIcon] = useState({ url: 'paddle/grn-circle.png', color: '#22c55e', scale: 1.0, opacity: 1.0 });
-            const [rxIcon, setRxIcon] = useState({ url: 'paddle/red-blank.png', color: '#ef4444', scale: 1.0, opacity: 1.0 });
+            const [txIcon, setTxIcon] = useState({ url: 'paddle/grn-blank.png', color: '#ffffff', scale: 1.0, opacity: 1.0 });
+            const [rxIcon, setRxIcon] = useState({ url: 'paddle/red-blank.png', color: '#ffffff', scale: 1.0, opacity: 1.0 });
             const [beamMatchColor, setBeamMatchColor] = useState('#10b981');
             const [beamNoMatchColor, setBeamNoMatchColor] = useState('#ef4444');
             const [lineColor, setLineColor] = useState('#10b981');
