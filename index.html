@@ -913,7 +913,7 @@
             useEffect(() => {
                 setSelectedIcon(currentIcon?.url || '');
                 setSelectedColor(currentIcon?.color || '#ffffff');
-                setSelectedScale(0.5);
+                setSelectedScale(1.0);
                 setSelectedOpacity(currentIcon?.opacity ?? 1.0);
             }, [currentIcon]);
 
@@ -976,9 +976,9 @@
                         <div className="icon-modal-top" style={{ padding: '16px 20px 12px', display: 'flex', gap: 16, background: '#ececec', alignItems: 'center', flexWrap: 'wrap' }}>
 
                             {/* Large Left Preview Icon */}
-                            <div style={{ width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', background: '#fff', border: '1px solid #ccc', borderRadius: '4px' }}>
+                            <div style={{ width: 60, height: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden', background: '#fff', border: '1px solid #ccc', borderRadius: 4 }}>
                                 {getIconUrl(selectedIcon, selectedColor) ? (
-                                    <svg width="72" height="72" viewBox="0 0 72 72" style={{ overflow: 'visible' }}>
+                                    <svg width="60" height="60" viewBox="0 0 60 60" style={{ overflow: 'visible' }}>
                                         {selectedColor !== '#ffffff' && !selectedIcon?.startsWith('svg/') && (
                                             <filter id="modal-icon-tint-preview">
                                                 <feComponentTransfer>
@@ -988,13 +988,10 @@
                                                 </feComponentTransfer>
                                             </filter>
                                         )}
-                                        <image
-                                            href={getIconUrl(selectedIcon, selectedColor)}
-                                            x="0" y="0" width="72" height="72"
+                                        <image href={getIconUrl(selectedIcon, selectedColor)} x="10" y="10" width="40" height="40"
                                             preserveAspectRatio="xMidYMid meet"
                                             filter={selectedColor !== '#ffffff' && !selectedIcon?.startsWith('svg/') ? 'url(#modal-icon-tint-preview)' : 'none'}
-                                            style={{ transform: `scale(${selectedScale})`, transformOrigin: 'center', opacity: selectedOpacity, transition: 'all 0.2s ease' }}
-                                        />
+                                            style={{ transform: `scale(${selectedScale})`, transformOrigin: 'center', opacity: selectedOpacity, transition: 'all 0.2s ease' }} />
                                     </svg>
                                 ) : null}
                             </div>
