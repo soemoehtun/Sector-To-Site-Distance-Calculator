@@ -1036,7 +1036,7 @@
                             <div style={{ background: '#fff', border: '2px solid #8ccbf8', padding: 8, flex: 1, overflowY: 'auto' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(30px, 1fr))', gap: 4 }}>
                                     {allIconsList.map((ic, idx) => {
-                                        const iconUrl = ic.isCustom ? ic.url : getIconUrl(ic.url, '#ffffff');
+                                        const iconUrl = ic.isCustom ? ic.url : getIconUrl(ic.url, '#333333');
                                         const isActive = selectedIcon === ic.url;
                                         return (
                                             <div
