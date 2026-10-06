@@ -1,0 +1,12 @@
+Site Name,Longitude,Latitude,Township,Region,Azimuth,Beamwidth,Radius
+Site 1,96.089217,16.977331,Insein,Yangon,30,65,3
+Site 2,96.18247,16.745411,Insein,Yangon,120,65,2.5
+Site 3,95.912681,16.903166,Insein,Yangon,210,90,4
+Site 4,96.202812,17.199078,Insein,Yangon,300,120,3.5
+Site 5,96.164652,16.754427,Insein,Yangon,60,60,2
+Site 6,96.293345,16.988097,Insein,Yangon,150,65,5
+Site 7,95.948054,16.99211,Insein,Yangon,240,30,3
+Site 8,95.989179,16.713721,Insein,Yangon,330,90,2.8
+Site 9,96.070087,16.994564,Insein,Yangon,45,65,4.5
+Site 10,96.046088,17.058814,Insein,Yangon,135,120,3.2
+Site 11,95.843115,16.842337,Insein,Yangon,225,65,2.2
