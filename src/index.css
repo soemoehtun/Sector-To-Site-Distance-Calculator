@@ -2341,16 +2341,16 @@ select.field-control { padding-right: 25px !important; }
   color: #0d3437;
 }
 .analysis-box {
-  border: 1px solid #d2dedb;
+  border: none;
   border-radius: 9px;
-  background: #ffffff;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(15, 34, 31, 0.04);
+  background: transparent;
+  overflow: visible;
+  box-shadow: none;
 }
 .analysis-header {
-  padding: 8px;
-  background: #f4f7f6;
-  border-bottom: 1px solid #e1ece9;
+  padding: 0 0 10px 0;
+  background: transparent;
+  border-bottom: none;
 }
 .analysis-tablist {
   display: flex;
@@ -2373,7 +2373,7 @@ select.field-control { padding-right: 25px !important; }
   letter-spacing: 0.01em;
   color: #4b635f;
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
   border-radius: 5px;
   cursor: pointer;
   -webkit-user-select: none;
@@ -2398,15 +2398,15 @@ select.field-control { padding-right: 25px !important; }
   background: #ffffff;
   color: #0b3835;
   font-weight: 750;
-  border-color: rgba(0, 0, 0, 0.04);
+  border: none;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 .analysis-tab.active svg {
   color: #0f9382;
 }
 .analysis-panel {
-  background: #ffffff;
-  padding: 14px;
+  background: transparent;
+  padding: 6px 0 0 0;
 }
 .analysis-panel > .check-row:first-child { margin-top: 0; }
 .analysis-panel .field-help { margin-bottom: 14px; }
